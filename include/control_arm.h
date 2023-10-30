@@ -126,7 +126,6 @@ private:
   ros::ServiceServer startJointTrajectoryControllerService_;
   ros::ServiceServer startJointGroupPositionControllerService_;
   ros::ServiceServer startJointGroupVelocityControllerService_;
-  ros::ServiceServer sendArmToHomingPoseService_;
 
   // ROS Service clients
   ros::ServiceClient applyPlanningSceneServiceClient_;
@@ -155,8 +154,6 @@ private:
                                          std_srvs::TriggerResponse &res);
   bool startJointGroupVelocityController(std_srvs::TriggerRequest &req,
                                          std_srvs::TriggerResponse &res);
-  bool getIkServiceCallback(schunk_lwa4p_control::getIkRequest &req,
-                            schunk_lwa4p_control::getIkResponse &res);
   bool sendArmToHomingPose(std_srvs::TriggerRequest &req,
                            std_srvs::TriggerResponse &res);
 
@@ -177,7 +174,6 @@ private:
   // Vectors and arrays
   std::vector<double> m_jointPositions_;
 
-  bool sendZeros(std::string ControllerType);
   bool sendToCmdPose();
   void sendToCmdPoses(std::vector<geometry_msgs::Pose> poses);
   bool sendToDeltaCmdPose();
