@@ -55,6 +55,12 @@
   <depend>franka_example_controllers</depend>
   <depend>franka_msgs</depend>
   <depend>panda_moveit_config</depend>
+  <depend>geometry_msgs</depend>
+  <depend>moveit_core</depend>
+  <depend>moveit_visual_tools</depend>
+  <depend>moveit_ros_planning</depend>
+  <depend>moveit_ros_planning_interface</depend>
+  <depend>moveit_msgs</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

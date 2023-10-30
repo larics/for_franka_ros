@@ -106,11 +106,6 @@ private:
   ros::Publisher displayTrajectoryPublisher_;
   ros::Publisher currentPosePublisher_;
   ros::Publisher cmdJoint1Publisher;
-  ros::Publisher cmdJoint2Publisher;
-  ros::Publisher cmdJoint3Publisher;
-  ros::Publisher cmdJoint4Publisher;
-  ros::Publisher cmdJoint5Publisher;
-  ros::Publisher cmdJoint6Publisher;
   ros::Publisher cmdJointGroupPositionPublisher;
   ros::Publisher cmdJointGroupVelocityPublisher;
 
@@ -154,8 +149,6 @@ private:
                                          std_srvs::TriggerResponse &res);
   bool startJointGroupVelocityController(std_srvs::TriggerRequest &req,
                                          std_srvs::TriggerResponse &res);
-  bool sendArmToHomingPose(std_srvs::TriggerRequest &req,
-                           std_srvs::TriggerResponse &res);
 
   // DisplayTrajectory
   moveit_msgs::DisplayTrajectory displayTrajectory_;
@@ -167,6 +160,7 @@ private:
   bool moveGroupInitialized_;
   bool planningSceneInitialized_;
   bool blockingMovement = true;
+  std::string endEffectorLinkName;
   geometry_msgs::Pose m_cmdPose;
   geometry_msgs::Pose m_lastCmdPose;
   geometry_msgs::Pose m_cmdDeltaPose;
@@ -191,6 +185,9 @@ private:
 
   // TODO: Move this to utils.cpp
   float round(float var);
+
+  static constexpr auto GROUP_NAME = "panda_manipulator"; 
+  static constexpr auto EE_LINK_NAME = "panda_EE"; 
 
 };
 

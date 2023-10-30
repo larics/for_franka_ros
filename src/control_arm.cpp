@@ -1,4 +1,6 @@
-#include "control_arm/control_arm.h"
+#include "control_arm.h"
+
+
 
 ControlArm::ControlArm(ros::NodeHandle nh) : nodeHandle_(nh) {
 
@@ -58,8 +60,6 @@ void ControlArm::init() {
   std::string startJointTrajectoryControllerServiceName;
   std::string startJointGroupPositionControllerServiceName;
   std::string startJointGroupVelocityControllerServiceName;
-  std::string sendArmToHomingPoseServiceName;
-  std::string getIkServiceName;
 
   nodeHandle_.param("publishers/display_trajectory_topic",
                     displayTrajectoryTopicName,
@@ -101,12 +101,6 @@ void ControlArm::init() {
       "services/start_joint_group_velocity_controller",
       startJointGroupVelocityControllerServiceName,
       std::string("controllers/start_joint_group_velocity_controller"));
-  nodeHandle_.param("services/send_arm_to_homing_pose",
-                    sendArmToHomingPoseServiceName,
-                    std::string("arm/send_arm_to_homing_pose"));
-  nodeHandle_.param("services/get_ik",
-                    getIkServiceName,
-                    std::string("get_ik"));
 
   ROS_INFO("[ControlArm] Initializing subscribers/publishers...");
   displayTrajectoryPublisher_ =
@@ -114,24 +108,15 @@ void ControlArm::init() {
           displayTrajectoryTopicName, displayTrajectoryQueueSize);
   currentPosePublisher_ = nodeHandle_.advertise<geometry_msgs::Pose>(
       currentPoseTopicName, currentPoseTopicQueueSize);
+ 
   cmdJoint1Publisher = nodeHandleWithoutNs_.advertise<std_msgs::Float64>(
-      std::string("lwa4p/joint_1_position_controller/command"), 1);
-  cmdJoint2Publisher = nodeHandleWithoutNs_.advertise<std_msgs::Float64>(
-      std::string("lwa4p/joint_2_position_controller/command"), 1);
-  cmdJoint3Publisher = nodeHandleWithoutNs_.advertise<std_msgs::Float64>(
-      std::string("lwa4p/joint_3_position_controller/command"), 1);
-  cmdJoint4Publisher = nodeHandleWithoutNs_.advertise<std_msgs::Float64>(
-      std::string("lwa4p/joint_4_position_controller/command"), 1);
-  cmdJoint5Publisher = nodeHandleWithoutNs_.advertise<std_msgs::Float64>(
-      std::string("lwa4p/joint_5_position_controller/command"), 1);
-  cmdJoint6Publisher = nodeHandleWithoutNs_.advertise<std_msgs::Float64>(
-      std::string("lwa4p/joint_6_position_controller/command"), 1);
+      std::string("franka_ph/joint_1_position_controller/command"), 1);
   cmdJointGroupPositionPublisher =
       nodeHandleWithoutNs_.advertise<std_msgs::Float64MultiArray>(
-          std::string("lwa4p/joint_group_position_controller/command"), 1);
+          std::string("franka_ph/joint_group_position_controller/command"), 1);
   cmdJointGroupVelocityPublisher =
       nodeHandleWithoutNs_.advertise<std_msgs::Float64MultiArray>(
-          std::string("lwa4p/joint_group_velocity_controller/command"), 1);
+          std::string("franka_ph/joint_group_velocity_controller/command"), 1);
 
   armCmdPoseSubscriber_ = nodeHandle_.subscribe<geometry_msgs::Pose>(
       cmdPoseTopicName, cmdPoseTopicQueueSize, &ControlArm::cmdPoseCallback,
@@ -153,11 +138,9 @@ void ControlArm::init() {
   addCollisionObjectService_ = nodeHandle_.advertiseService(
       addCollisionObjectServiceName,
       &ControlArm::addCollisionObjectServiceCallback, this);
-  startPositionControllersService_ =
-      nodeHandle_.advertiseService(startPositionControllersServiceName,
-                                   &ControlArm::startPositionControllers, this);
-  getIkService_ = nodeHandle_.advertiseService(getIkServiceName, &ControlArm::getIkServiceCallback, this);
-
+  startPositionControllersService_ = nodeHandle_.advertiseService(
+      startPositionControllersServiceName,
+      &ControlArm::startPositionControllers, this);
   startJointTrajectoryControllerService_ = nodeHandle_.advertiseService(
       startJointTrajectoryControllerServiceName,
       &ControlArm::startJointTrajectoryController, this);
@@ -167,11 +150,6 @@ void ControlArm::init() {
   startJointGroupVelocityControllerService_ = nodeHandle_.advertiseService(
       startJointGroupVelocityControllerServiceName,
       &ControlArm::startJointGroupVelocityController, this);
-  sendArmToHomingPoseService_ = nodeHandle_.advertiseService(
-      sendArmToHomingPoseServiceName, &ControlArm::sendArmToHomingPose, this);
-  // executeCartesianPathService_ =
-  // nodeHandle_.advertiseService(executeCartesianPathServiceName,
-  // &ControlArm::executeCartesianServiceCallback, this);
   ROS_INFO("[ControlArm] Initialized services.");
 
   // Initialize Clients for other services
@@ -180,6 +158,8 @@ void ControlArm::init() {
       nodeHandleWithoutNs_.serviceClient<moveit_msgs::ApplyPlanningScene>(
           "apply_planning_scene");
   applyPlanningSceneServiceClient_.waitForExistence();
+  
+  /* Controller stuff (Services that don't exist for now!)
   switchControllerServiceClient_ =
       nodeHandleWithoutNs_
           .serviceClient<controller_manager_msgs::SwitchController>(
@@ -195,10 +175,8 @@ void ControlArm::init() {
           startPositionControllersServiceName);
   switchToTrajectoryControllerServiceClient_ =
       nodeHandle_.serviceClient<std_srvs::Trigger>(
-          startJointTrajectoryControllerServiceName);
-
-  // addCollisionObjectServiceClient_ =
-  // nodeHandle_.serviceClient<std_srvs::Trigger>("scene/add_collisions");
+          startJointTrajectoryControllerServiceName);*/
+  
   ROS_INFO("[ControlArm] Initialized service clients. ");
 }
 
@@ -206,10 +184,8 @@ bool ControlArm::setMoveGroup() {
 
   ROS_INFO("[ControlArm] Setting move group.");
 
-  // MoveIt move group
-  static const std::string groupName = "arm";
   m_moveGroupPtr =
-      new moveit::planning_interface::MoveGroupInterface(groupName);
+      new moveit::planning_interface::MoveGroupInterface(GROUP_NAME);
 
   // Allow replanning
   m_moveGroupPtr->allowReplanning(true);
@@ -383,7 +359,6 @@ bool ControlArm::sendToDeltaCmdPose() {
 void ControlArm::addCollisionObject(moveit_msgs::PlanningScene &planningScene) {
 
   ROS_INFO("Adding collision object...");
-
   std::vector<moveit_msgs::CollisionObject> collisionObjects;
   moveit_msgs::CollisionObject collisionObject1;
   moveit_msgs::CollisionObject collisionObject2;
@@ -413,25 +388,6 @@ void ControlArm::addCollisionObject(moveit_msgs::PlanningScene &planningScene) {
 
   collisionObjects.push_back(collisionObject1);
 
-  collisionObject2.id = "wall";
-  primitive.type = primitive.BOX;
-  primitive.dimensions.resize(3);
-  primitive.dimensions[0] = 0.1;
-  primitive.dimensions[1] = 3.0;
-  primitive.dimensions[2] = 2.0;
-
-  geometry_msgs::Pose wall_pose;
-  wall_pose.orientation.w = 1.0;
-  wall_pose.position.x = -0.70;
-  wall_pose.position.y = 0.0;
-  wall_pose.position.z = 1.0;
-
-  collisionObject2.primitives.push_back(primitive);
-  collisionObject2.primitive_poses.push_back(wall_pose);
-  collisionObject2.operation = collisionObject2.ADD;
-
-  collisionObjects.push_back(collisionObject2);
-
   for (std::size_t i = 0; i < collisionObjects.size(); ++i) {
     planningScene.world.collision_objects.push_back(collisionObjects.at(i));
   };
@@ -450,12 +406,6 @@ bool ControlArm::disableCollisionServiceCallback(
 
     // Before setting collisions
     acm.setEntry("powerline_cable1", "separator_right_head", true);
-    acm.setEntry("powerline_cable1", "separator_left_head", true);
-    acm.setEntry("powerline_cable1", "separator_main", true);
-    acm.setEntry("powerline_cable2", "separator_right_head", true);
-    acm.setEntry("powerline_cable2", "separator_left_head", true);
-    acm.setEntry("powerline_cable2", "separator_main", true);
-    acm.setEntry("powerline_cable2", "separator_base", true);
 
     moveit_msgs::PlanningScene planningScene;
     m_planningScenePtr->getPlanningSceneMsg(planningScene);
@@ -482,24 +432,6 @@ bool ControlArm::disableCollisionServiceCallback(
   } else {
     return false;
   }
-}
-
-bool ControlArm::getIkServiceCallback(schunk_lwa4p_control::getIkRequest &req,
-                                      schunk_lwa4p_control::getIkResponse &res)
-{
-    int attempts = 10;
-    int timeout = 1;
-    bool success = getIK(req.wantedPose, attempts, timeout);
-    std::vector<double> jointPositions;
-    m_currentRobotStatePtr->copyJointGroupPositions(m_jointModelGroupPtr,
-                                                    jointPositions);
-
-    sensor_msgs::JointState jointState;
-    jointState.position = jointPositions;
-    res.jointState = jointState;
-
-    return success;
-
 }
 
 void ControlArm::getRunningControllers(
@@ -536,6 +468,7 @@ bool ControlArm::startJointTrajectoryController(
   getRunningControllers(runningControllers);
 
   ROS_INFO("[ControlArm] Starting JointTrajectoryController...");
+  
   // Stop running controllers
   controller_manager_msgs::SwitchControllerRequest switchControllerRequest;
   controller_manager_msgs::SwitchControllerResponse switchControllerResponse;
@@ -714,7 +647,6 @@ void ControlArm::getJointPositions(const std::vector<std::string> &jointNames,
   }
 }
 
-
 bool ControlArm::getIK(const geometry_msgs::Pose wantedPose, const std::size_t attempts, double timeout) {
 
 
@@ -756,10 +688,9 @@ void ControlArm::run() {
     getCurrentArmState();
 
     // Get all joints
-    m_jointModelGroupPtr = m_currentRobotStatePtr->getJointModelGroup("arm");
+    m_jointModelGroupPtr = m_currentRobotStatePtr->getJointModelGroup(GROUP_NAME);
 
-    // Or use EndEffector link
-    Eigen::Affine3d currentPose_ = m_moveGroupPtr->getCurrentState()->getFrameTransform("wsg50_center");
+    Eigen::Affine3d currentPose_ = m_moveGroupPtr->getCurrentState()->getFrameTransform(EE_LINK_NAME);
     geometry_msgs::Pose currentROSPose_; tf::poseEigenToMsg(currentPose_, currentROSPose_);
     currentPosePublisher_.publish(currentROSPose_);
 

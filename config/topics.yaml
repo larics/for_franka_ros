@@ -1,0 +1,20 @@
+subscribers:
+
+  cmd_pose_topic:
+    topic: /arm/command/pose
+    queue_size: 1
+
+  cmd_tool_orientation_topic:
+    topic: /tool/command/orientation
+    queue_size: 1
+
+  cmd_delta_pose_topic: 
+    topic: /arm/command/delta_pose
+    queue_size: 1  
+
+publishers:
+
+  display_trajectory_topic:
+    topic: /move_group/display_planned_path
+    queue_size: 1
+
