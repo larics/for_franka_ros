@@ -1,7 +1,5 @@
 #include "control_arm.h"
 
-
-
 ControlArm::ControlArm(ros::NodeHandle nh) : nodeHandle_(nh) {
 
   ROS_INFO("[ControlArm] Node started.");

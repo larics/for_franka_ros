@@ -186,8 +186,9 @@ private:
   // TODO: Move this to utils.cpp
   float round(float var);
 
+  // Have to rebuild each time when this is changes, TODO: Add some config for that
   static constexpr auto GROUP_NAME = "panda_manipulator"; 
-  static constexpr auto EE_LINK_NAME = "panda_EE"; 
+  static constexpr auto EE_LINK_NAME = "panda_hand_tcp"; 
 
 };
 
