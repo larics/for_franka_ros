@@ -70,7 +70,6 @@ def draw(points_gazebo, points_fk):
     plt.title('End effector path')
     plt.show()
 
-# Return goal position based on the forwardKinematics? 
 def forwardKinematics(q, plot=False):
     """ Forward kinematics 
 
@@ -93,7 +92,7 @@ def forwardKinematics(q, plot=False):
     # TODO: Write matrix multiplication term that returns transformation 
     # from the base_link (0) to the end effector e, use np.matmul or np.dot
     # check numpy documentation! 
-    T0e = np.matrix((4, 4))
+    T0e = np.eye(4, 4)
 
     return poseFromMatrix(T0e)
 
@@ -106,6 +105,8 @@ def getTfromEuler(t, euler_vector):
     Returns: 
         T (np.matrix): homogenous transformation matrix
     """
+
+    pass
 
     return T
 
@@ -120,6 +121,8 @@ def get_T(T_point, T_BW, T_WT, T_BT):
     Returns: 
         nT_point (np.matrix): HTM of the transformed point in the new coordinate frame
     """
+
+    pass
 
     return nT_point
 
@@ -160,8 +163,10 @@ class OrLab1():
         self.p5.position.y = -0.05
         self.p5.position.z = 0.8
 
+        # Poses that represent small house
         self.poses = [self.p1, self.p2, self.p3, self.p4, self.p5]
 
+        # Poses in the joint space
         self.Q1 = [0.10498037158297269, -0.8661767348888807, -0.12536473661681047, -2.2633746616581547, 0.6878899307541717, 2.84523589989211, 0.796144453328]; 
         self.Q2 = [0.60195205214578, -1.0176603655579513, -0.26678371589446215, -2.794013825558414, 0.8293323483622554, 3.481340900004292, 0.5449582738253334]; 
         self.Q3 = [-0.046799258479464534, -0.9061714256000792, 0.08583176237453838, -2.383377932774004, 1.0529403405705002, 2.8997051316198323, 0.5878432032726977]; 
@@ -202,9 +207,9 @@ class OrLab1():
                 self.ee_points.append(new_p)
                 self.ee_points_fk.append(plotFK(self.q_s))
 
-    def sendRobotToPose(self, matrix):
-        self.pose_pub.publish(poseFromMatrix(matrix))
-        rospy.sleep(5)
+    def sendRobotToPose(self, pose, sleepT):
+        self.pose_pub.publish(pose)
+        rospy.sleep(sleepT)
         
     def sendRobotToInitPose(self): 
         self.pose_pub.publish(self.init_pose)
@@ -214,20 +219,13 @@ class OrLab1():
 
         if self.msg_reciv: 
             self.sendRobotToInitPose()
-
-            # TODO: []
-            #self.poses = [poseFromMatrix(T) for T in Ts]
             order = [0, 1, 2, 3, 1, 4, 3, 0, 2]
-
             for i in order: 
                 rospy.loginfo("Visiting {} point".format(i))
                 forwardKinematics(self.q_s, plot=False)
-                self.pose_pub.publish(self.poses[i])
-                rospy.sleep(15)     
+                self.sendRobotToPose(self.poses[i], 10)    
 
             self.sendRobotToInitPose()
-            ## send robot back to init pose
-            # Draw points
             draw(self.ee_points, self.ee_points_fk)
 
 
