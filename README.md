@@ -31,10 +31,18 @@ docker exec -it for_cont bash
 python3 or_lab1.py
 ``` 
 
-#Command robot with: 
+#### Topics
+
+Topics that are used to control robot are under `control_arm_node` namespace. 
+
+#### Sidenote
+
+Robot trajectories (paths) while drawing a house won't be straight lines and it is normal and expected. 
+However, from the figure obtained, you should see red and blue line, more or less in a same way. 
 
 ## TODO: 
 - [x] Create `control_arm.cpp` interface [simple moveit wrapper]
-- [ ] Add instructions for building/using Dockerfile 
+- [x] Add instructions for building/using Dockerfile 
 - [x] Create `or_lab1.py`
 - [x] Test `or_lab1.py` 
+- [ ] Edit prototyped methods 
