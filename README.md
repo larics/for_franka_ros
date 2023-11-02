@@ -45,3 +45,4 @@ However, from the figure obtained, you should see red and blue line, more or les
 - [x] Add instructions for building/using Dockerfile 
 - [x] Create `or_lab1.py`
 - [x] Test `or_lab1.py` 
+- [ ] Edit prototyped methods 
