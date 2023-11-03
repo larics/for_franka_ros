@@ -70,7 +70,6 @@ def draw(points_gazebo, points_fk):
     plt.title('End effector path')
     plt.show()
 
-
 def forwardKinematics(q, plot=False):
     """ Forward kinematics 
 
@@ -216,24 +215,20 @@ class OrLab1():
             transformedT = []
             for i in order: 
                 rospy.loginfo("Visiting {} point".format(i))
-                # TODO: Test FK that's implemented and getT
+                # TODO: Test FK that's implemented 
                 # uncomment next line to test FK 
                 # pose_i = forwardKinematics(self.Q[i], plot=False)
-                # comment if testing FK
+                # comment next line if testing FK
                 pose_i = self.poses[i]
                 self.sendRobotToPose(pose_i, 10)
-                # TODO: Transform points    
+                # TODO: Ater finishing FK, test gtT for transforming points    
                 # transformedT.append(self.get_T(pose_i, ...)
-
-
 
             self.sendRobotToInitPose()
             # Draw FK
             draw(self.ee_points, self.ee_points_fk)
-            # TODO: Draw trasformed points
+            # TODO: Uncomment to test draw trasformed points
             # draw(self.ee_points, transformedT)
-
-
 
 
 if __name__ == "__main__":
