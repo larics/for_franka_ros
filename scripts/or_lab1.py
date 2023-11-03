@@ -3,7 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped, Pose, Point
 import numpy as np
-from tf.transformations import quaternion_from_matrix
+from tf.transformations import quaternion_from_matrix, matrix_from_pose
 from tf import TransformListener, LookupException, ConnectivityException, ExtrapolationException
 from sensor_msgs.msg import JointState
 import matplotlib.pyplot as plt
@@ -70,15 +70,16 @@ def draw(points_gazebo, points_fk):
     plt.title('End effector path')
     plt.show()
 
+
 def forwardKinematics(q, plot=False):
     """ Forward kinematics 
 
     Args:
-        q (np.array): measured joint values in the array 7x1
+        q (np.array): measured joint values in the array [7x1]
         plot (bool): False
 
     Returns:
-        T0e (np.matrix): HTM of the tool in the 0 frame [world frame]
+        T0e (np.matrix): HTM of the tool in the 0 frame [world frame] [4x4]
     """
 
     q1 = round(q[0], 4); q2 = round(q[1], 4); q3 = round(q[2], 4); q4 = round(q[3], 4); q5 = round(q[4], 4); q6 = round(q[5],4); q7 = round(q[6],4)
@@ -102,27 +103,29 @@ def getTfromEuler(t, euler_vector):
     """ Return homogenous transformation matrix (HTM) from translation and the euler vector.
 
     Args:
-        t (np.array): translation vector
-        euler_vector (np.array): rotation vector written as euler angles
+        t (np.array): translation vector [3x1]
+        euler_vector (np.array): rotation vector written as euler angles [3x1]
     Returns: 
-        T (np.matrix): homogenous transformation matrix
+        T (np.matrix): homogenous transformation matrix [4x4]
     """
 
     pass
 
     return T
 
-def get_T(T_point, T_BW, T_WT, T_BT): 
+def get_T(p, T_BW, T_WT, T_BT): 
     """Return transformed point based on the given HTMs.
 
     Args:
-        T_point (np.matrix): HTM of the point that needs to be shown in another coordinate frame
-        T_BW (np.matrix): HTM of the base in the world frame
-        T_WT (np.matrix): HTM of the world in the target frame
-        T_BT (np.matrix): HTM of the target in the base frame
+        point (np.array): point that will transformed into other coordinate frame [4x1]
+        T_BW (np.matrix): HTM of the base in the world frame [4x4]
+        T_WT (np.matrix): HTM of the world in the target frame [4x4]
+        T_BT (np.matrix): HTM of the target in the base frame [4x4]
     Returns: 
-        nT_point (np.matrix): HTM of the transformed point in the new coordinate frame
+        nT_point (np.array): Transformed point in the new coordinate frame [4x1]
     """
+
+    T_point = np.array([p.position.x, p.position.y, p.position.z, 1]).reshape(4, 1)
 
     pass
 
@@ -138,32 +141,20 @@ class OrLab1():
         self.init_pose.orientation.x = -1; self.init_pose.orientation.y = 0.0; self.init_pose.orientation.z = 0; self.init_pose.orientation.w = 0; 
         self.pose_list = []
         self.tf_listener = TransformListener()
-        self._init_subs()
-        self._init_pubs()
+        self._init_subs(); self._init_pubs()
         self.ee_frame_name = "panda_hand_tcp"
-        self.ee_points = []
-        self.ee_points_fk = []
+        self.ee_points = []; self.ee_points_fk = []
         self.msg_reciv = False
+        
         # Define poses for visiting! 
         self.p1 = Pose(); 
-        self.p1.position.x = 0.4
-        self.p1.position.y = 0.0 
-        self.p1.position.z = 0.6
-        self.p1.orientation.x = -0.692
-        self.p1.orientation.y = 0.203
-        self.p1.orientation.z = -0.6078
-        self.p1.orientation.w = 0.331
+        self.p1.position.x = 0.4; self.p1.position.y = 0.0; self.p1.position.z = 0.6
+        self.p1.orientation.x = -0.692; self.p1.orientation.y = 0.203; self.p1.orientation.z = -0.6078; self.p1.orientation.w = 0.331
         normalize_q(self.p1); 
-        self.p2 = copy.deepcopy(self.p1); 
-        self.p2.position.z = 0.7; 
-        self.p3 = copy.deepcopy(self.p2)
-        self.p3.position.y = -0.1
-        self.p3.position.z = 0.6
-        self.p4 = copy.deepcopy(self.p3)
-        self.p4.position.z = 0.7
-        self.p5= copy.deepcopy(self.p4)
-        self.p5.position.y = -0.05
-        self.p5.position.z = 0.8
+        self.p2 = copy.deepcopy(self.p1); self.p2.position.z = 0.7; 
+        self.p3 = copy.deepcopy(self.p2); self.p3.position.y = -0.1; self.p3.position.z = 0.6
+        self.p4 = copy.deepcopy(self.p3); self.p4.position.z = 0.7
+        self.p5 = copy.deepcopy(self.p4); self.p5.position.y = -0.05; self.p5.position.z = 0.8
 
         # Poses that represent small house
         self.poses = [self.p1, self.p2, self.p3, self.p4, self.p5]
@@ -222,13 +213,23 @@ class OrLab1():
         if self.msg_reciv: 
             self.sendRobotToInitPose()
             order = [0, 1, 2, 3, 1, 4, 3, 0, 2]
+            transformedT = []
             for i in order: 
                 rospy.loginfo("Visiting {} point".format(i))
-                forwardKinematics(self.q_s, plot=False)
-                self.sendRobotToPose(self.poses[i], 10)    
+                pose_i = forwardKinematics(self.Q[i], plot=False)
+                self.sendRobotToPose(self.poses[i], 10)
+                # TODO: Transform points    
+                # transformedT.append(self.get_T(pose_i, ...)
+
+
 
             self.sendRobotToInitPose()
+            # Draw FK
             draw(self.ee_points, self.ee_points_fk)
+            # TODO: Draw trasformed points
+            # draw(self.ee_points, transformedT)
+
+
 
 
 if __name__ == "__main__":
