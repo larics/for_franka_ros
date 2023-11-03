@@ -3,7 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped, Pose, Point
 import numpy as np
-from tf.transformations import quaternion_from_matrix, matrix_from_pose
+from tf.transformations import quaternion_from_matrix
 from tf import TransformListener, LookupException, ConnectivityException, ExtrapolationException
 from sensor_msgs.msg import JointState
 import matplotlib.pyplot as plt
@@ -216,8 +216,12 @@ class OrLab1():
             transformedT = []
             for i in order: 
                 rospy.loginfo("Visiting {} point".format(i))
-                pose_i = forwardKinematics(self.Q[i], plot=False)
-                self.sendRobotToPose(self.pose_i, 10)
+                # TODO: Test FK that's implemented and getT
+                # uncomment next line to test FK 
+                # pose_i = forwardKinematics(self.Q[i], plot=False)
+                # comment if testing FK
+                pose_i = self.poses[i]
+                self.sendRobotToPose(pose_i, 10)
                 # TODO: Transform points    
                 # transformedT.append(self.get_T(pose_i, ...)
 
