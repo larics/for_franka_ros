@@ -217,7 +217,7 @@ class OrLab1():
             for i in order: 
                 rospy.loginfo("Visiting {} point".format(i))
                 pose_i = forwardKinematics(self.Q[i], plot=False)
-                self.sendRobotToPose(self.poses[i], 10)
+                self.sendRobotToPose(self.pose_i, 10)
                 # TODO: Transform points    
                 # transformedT.append(self.get_T(pose_i, ...)
 
