@@ -83,18 +83,26 @@ def forwardKinematics(q, plot=False):
 
     q1 = round(q[0], 4); q2 = round(q[1], 4); q3 = round(q[2], 4); q4 = round(q[3], 4); q5 = round(q[4], 4); q6 = round(q[5],4); q7 = round(q[6],4)
 
-    M_PI = math.pi
-    # TODO: 1st! Insert your kinematic parameters here
+  
+    q1 = round(q[0], 4); q2 = round(q[1], 4); q3 = round(q[2], 4); q4 = round(q[3], 4); q5 = round(q[4], 4); q6 = round(q[5],4); q7 = round(q[6],4)
+
+    M_PI = np.pi
     # theta, d, alpha, a
-    theta = 0; d = 0; alpha = 0; a = 0; 
-    T01 = TfromDH(theta, d, alpha, a)
-    
-    # TODO: Write matrix multiplication term that returns transformation 
-    # from the base_link (0) to the end effector e, use np.matmul or np.dot
-    # check numpy documentation! 
-    # Return T0e, bear in mind that this is just a placeholder! 
-    # Order of the multiplication is extremely important! 
-    T0e = np.eye(4, 4)
+    T01 = TfromDH(q1, 0.333, -M_PI/2, 0.)
+    T12 = TfromDH(q2, 0, M_PI/2, 0)
+    T23 = TfromDH(q3, 0.316, M_PI/2, 0.0825)
+    T34 = TfromDH(q4, 0, -M_PI/2, -0.0825)
+    T45 = TfromDH(q5, 0.384, M_PI/2, 0.)
+    T56 = TfromDH(q6, 0, M_PI/2, 0.088)
+    T67 = TfromDH(q7, 0.107, 0, 0.)
+    #T7e = np.eye(4)
+
+    T02 = np.matmul(T01, T12)
+    T03 = np.matmul(T02, T23)
+    T04 = np.matmul(T03, T34)
+    T05 = np.matmul(T04, T45)
+    T06 = np.matmul(T05, T56)
+    T0e = np.matmul(T06, T67)
 
     return poseFromMatrix(T0e)
 
@@ -174,8 +182,8 @@ class OrLab1():
 
     def _init_subs(self):
         self.pose_sub = rospy.Subscriber("/control_arm_node/tool/current_pose", Pose, self.tool_cb, queue_size=1)
-        self.joint_states_sub = rospy.Subscriber("/joint_states",JointState, self.joints_cb, queue_size=1)
-        rospy.loginfo("Initialized subscribers!")
+        self.joint_states_sub = rospy.Subscriber("/joint_states", JointState, self.joints_cb, queue_size=1)
+        rospy.loginfo("Initialized subscribers!") 
 
     ## Callbacks
     def tool_cb(self, msg):
