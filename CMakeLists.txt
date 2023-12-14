@@ -27,8 +27,20 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Eigen3 REQUIRED)
 
+## Must be called before catkin_package
+add_service_files(
+        DIRECTORY srv
+        FILES
+        getIk.srv
+)
+
+generate_messages(
+        DEPENDENCIES std_msgs geometry_msgs sensor_msgs
+)
+
+
 catkin_package(
-  INCLUDE_DIRS include
+  INCLUDE_DIRS include srv
   LIBRARIES
     ${PROJECT_NAME}_lib
   CATKIN_DEPENDS 
@@ -50,6 +62,8 @@ catkin_package(
 include_directories(
  include ${catkin_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR}
 )
+
+
 
 ## Declare a C++ library
 set(PROJECT_LIB_FILES 

@@ -50,6 +50,11 @@
 // Utils
 #include <tf2/LinearMath/Quaternion.h>
 
+// Custom service
+#include "for_franka_ros/getIk.h"
+#include "for_franka_ros/getIkRequest.h"
+#include "for_franka_ros/getIkResponse.h"
+
 
 class ControlArm {
 
@@ -121,6 +126,7 @@ private:
   ros::ServiceServer startJointTrajectoryControllerService_;
   ros::ServiceServer startJointGroupPositionControllerService_;
   ros::ServiceServer startJointGroupVelocityControllerService_;
+  ros::ServiceServer getIkService_; 
 
   // ROS Service clients
   ros::ServiceClient applyPlanningSceneServiceClient_;
@@ -149,6 +155,8 @@ private:
                                          std_srvs::TriggerResponse &res);
   bool startJointGroupVelocityController(std_srvs::TriggerRequest &req,
                                          std_srvs::TriggerResponse &res);
+  bool getIkServiceCallback(for_franka_ros::getIkRequest &req, 
+                            for_franka_ros::getIkResponse &res); 
 
   // DisplayTrajectory
   moveit_msgs::DisplayTrajectory displayTrajectory_;
@@ -178,6 +186,8 @@ private:
                          std::vector<double> &jointGroupPositions);
   void getRunningControllers(std::vector<std::string> &runningControllerNames);
   bool getIK(const geometry_msgs::Pose wantedPose, const std::size_t attempts, double timeout);
+  bool getAnalyticIK(const geometry_msgs::Pose wantedPose); 
+
   Eigen::MatrixXd getJacobian(Eigen::Vector3d
                   refPointPosition); // Can be created as void and arg passed to
                                      // be changed during execution

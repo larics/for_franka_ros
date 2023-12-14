@@ -40,9 +40,17 @@ Topics that are used to control robot are under `control_arm_node` namespace.
 Robot trajectories (paths) while drawing a house won't be straight lines and it is normal and expected. 
 However, from the figure obtained, you should see red and blue line, more or less in a same way. 
 
+## Build workspace with autocomplete options
+
+In order to use autocomplete and CMAKE_ARGS use following command: 
+```
+catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
+```
+
 ## TODO: 
 - [x] Create `control_arm.cpp` interface [simple moveit wrapper]
 - [x] Add instructions for building/using Dockerfile 
 - [x] Create `or_lab1.py`
 - [x] Test `or_lab1.py` 
+- [ ] Create `or_lab2.py`
 - [ ] Edit prototyped methods 

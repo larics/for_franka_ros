@@ -1,4 +1,5 @@
 #include "control_arm.h"
+#include "franka_ik.h"
 
 ControlArm::ControlArm(ros::NodeHandle nh) : nodeHandle_(nh) {
 
@@ -58,6 +59,7 @@ void ControlArm::init() {
   std::string startJointTrajectoryControllerServiceName;
   std::string startJointGroupPositionControllerServiceName;
   std::string startJointGroupVelocityControllerServiceName;
+  std::string getIkServiceName; 
 
   nodeHandle_.param("publishers/display_trajectory_topic",
                     displayTrajectoryTopicName,
@@ -87,18 +89,18 @@ void ControlArm::init() {
   nodeHandle_.param("services/start_position_controllers",
                     startPositionControllersServiceName,
                     std::string("controllers/start_position_controllers"));
-  nodeHandle_.param(
-      "services/start_joint_trajectory_controller",
-      startJointTrajectoryControllerServiceName,
-      std::string("controllers/start_joint_trajectory_controller"));
-  nodeHandle_.param(
-      "services/start_joint_group_position_controller",
-      startJointGroupPositionControllerServiceName,
-      std::string("controllers/start_joint_group_position_controller"));
-  nodeHandle_.param(
-      "services/start_joint_group_velocity_controller",
-      startJointGroupVelocityControllerServiceName,
-      std::string("controllers/start_joint_group_velocity_controller"));
+  nodeHandle_.param("services/start_joint_trajectory_controller",
+                    startJointTrajectoryControllerServiceName,
+                    std::string("controllers/start_joint_trajectory_controller"));
+  nodeHandle_.param("services/start_joint_group_position_controller",
+                    startJointGroupPositionControllerServiceName,
+                    std::string("controllers/start_joint_group_position_controller"));
+  nodeHandle_.param("services/start_joint_group_velocity_controller",
+                    startJointGroupVelocityControllerServiceName,
+                    std::string("controllers/start_joint_group_velocity_controller"));
+  nodeHandle_.param("services/get_ik", 
+                    getIkServiceName, 
+                    std::string("services/get_ik")); 
 
   ROS_INFO("[ControlArm] Initializing subscribers/publishers...");
   displayTrajectoryPublisher_ =
@@ -150,30 +152,16 @@ void ControlArm::init() {
       &ControlArm::startJointGroupVelocityController, this);
   ROS_INFO("[ControlArm] Initialized services.");
 
+  getIkService_ = nodeHandle_.advertiseService(
+    getIkServiceName,
+    &ControlArm::getIkServiceCallback, this);
+
   // Initialize Clients for other services
   ROS_INFO("[ControlArm] Initializing service clients...");
   applyPlanningSceneServiceClient_ =
       nodeHandleWithoutNs_.serviceClient<moveit_msgs::ApplyPlanningScene>(
           "apply_planning_scene");
   applyPlanningSceneServiceClient_.waitForExistence();
-  
-  /* Controller stuff (Services that don't exist for now!)
-  switchControllerServiceClient_ =
-      nodeHandleWithoutNs_
-          .serviceClient<controller_manager_msgs::SwitchController>(
-              "lwa4p/controller_manager/switch_controller");
-  switchControllerServiceClient_.waitForExistence();
-  listControllersServiceClient_ =
-      nodeHandleWithoutNs_
-          .serviceClient<controller_manager_msgs::ListControllers>(
-              "lwa4p/controller_manager/list_controllers");
-  listControllersServiceClient_.waitForExistence();
-  switchToPositionControllerServiceClient_ =
-      nodeHandle_.serviceClient<std_srvs::Trigger>(
-          startPositionControllersServiceName);
-  switchToTrajectoryControllerServiceClient_ =
-      nodeHandle_.serviceClient<std_srvs::Trigger>(
-          startJointTrajectoryControllerServiceName);*/
   
   ROS_INFO("[ControlArm] Initialized service clients. ");
 }
@@ -658,6 +646,30 @@ bool ControlArm::getIK(const geometry_msgs::Pose wantedPose, const std::size_t a
 
   return found_ik;
 }
+
+bool ControlArm::getIkServiceCallback(for_franka_ros::getIkRequest &req,
+                                      for_franka_ros::getIkResponse &res)
+{
+    int attempts = 10;
+    int timeout = 1;
+    bool success = getIK(req.wantedPose, attempts, timeout);
+    std::vector<double> jointPositions;
+    m_currentRobotStatePtr->copyJointGroupPositions(m_jointModelGroupPtr,
+                                                    jointPositions);
+
+    sensor_msgs::JointState jointState;
+    jointState.position = jointPositions;
+    res.jointState = jointState;
+
+    return success;
+
+}
+
+//bool ControlArm::getAnalyticIK(const geometry_msgs::Pose wantedPose)
+//{
+//
+//
+//}
 
 Eigen::MatrixXd ControlArm::getJacobian(Eigen::Vector3d refPointPosition) {
 
