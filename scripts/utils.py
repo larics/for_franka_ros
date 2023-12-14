@@ -20,12 +20,12 @@ def get_poses(poses_data):
             pose_msg = Pose()
             pose_msg.position.x = pose_values.get('x', 0.0)
             pose_msg.position.y = pose_values.get('y', 0.0)
-            pose_msg.position.z = pose_values.get('y', 0.0)
+            pose_msg.position.z = pose_values.get('z', 0.0)
             pose_msg.orientation.x = pose_values.get('qx', 0.0)
             pose_msg.orientation.y = pose_values.get('qy', 0.0)
             pose_msg.orientation.z = pose_values.get('qz', 0.0)
             pose_msg.orientation.w = pose_values.get('qw', 0.0)
-            poses.append(pose_msg)
+            poses.append(normalize_q(pose_msg))
     return poses
 
 # Conversion utils
