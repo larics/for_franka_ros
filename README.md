@@ -52,5 +52,9 @@ catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 - [x] Add instructions for building/using Dockerfile 
 - [x] Create `or_lab1.py`
 - [x] Test `or_lab1.py` 
-- [ ] Create `or_lab2.py`
-- [ ] Edit prototyped methods 
+- [x] Create `or_lab2.py`
+- [x] Edit prototyped methods
+- [x] Add .gitignore
+- [ ] Launch position controller
+- [ ] Switch controllers 
+- [ ] Test joint pose commands 
