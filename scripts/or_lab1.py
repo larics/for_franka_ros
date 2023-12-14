@@ -10,101 +10,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import copy
 import math
-
-def normalize_q(pose):
-    qx = pose.orientation.x
-    qy = pose.orientation.y 
-    qz = pose.orientation.z 
-    qw = pose.orientation.w  
-    norm = np.sqrt(qx**2 + qy**2 + qz**2 + qw**2)
-    qx = qx/norm; qy = qy/norm; qz = qz/norm; qw = qw/norm
-    pose.orientation.x = qx 
-    pose.orientation.y = qy 
-    pose.orientation.z = qz 
-    pose.orientation.w = qw 
-    return pose
-
-def poseFromMatrix(matrix):
-    goal_pose = Pose()
-    quat = quaternion_from_matrix(matrix)
-    goal_pose.position.x = matrix[0,3]
-    goal_pose.position.y = matrix[1,3]
-    goal_pose.position.z = matrix[2,3]
-    goal_pose.orientation.x = quat[0]
-    goal_pose.orientation.y = quat[1]
-    goal_pose.orientation.z = quat[2]
-    goal_pose.orientation.w = quat[3]
-    return goal_pose
-
-def TfromDH(theta, d, alpha, a):
-    T = np.eye(4)
-    T[0,0] = np.cos(theta)
-    T[0,1] = -np.sin(theta)*np.cos(alpha)
-    T[0,2] = np.sin(theta)*np.sin(alpha)
-    T[0,3] = a*np.cos(theta)
-    T[1,0] = np.sin(theta)
-    T[1,1] = np.cos(theta)*np.cos(alpha)
-    T[1,2] = -np.cos(theta)*np.sin(alpha)
-    T[1,3] = a*np.sin(theta)
-    T[2,0] = 0
-    T[2,1] = np.sin(alpha)
-    T[2,2] = np.cos(alpha)
-    T[2,3] = d
-    return T
-
-def plotFK(q): 
-    p = forwardKinematics(q, plot=True)
-    return [p.position.x, p.position.y, p.position.z]
-
-def draw(points_gazebo, points_fk):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    arr_points = np.stack(points_gazebo, axis=0)
-    ax.plot(arr_points[:,0],arr_points[:,1],arr_points[:,2], label='Gazebo path')
-    fk_points = np.stack(points_fk, axis=0)
-    ax.plot(fk_points[:,0],fk_points[:,1],fk_points[:,2], 'r', label='Forward kinematics')
-    ax.set_xlabel('x [m]')
-    ax.set_ylabel('y [m]')
-    ax.set_zlabel('z [m]')
-    ax.legend(loc='lower right')
-    plt.title('End effector path')
-    plt.show()
-
-def forwardKinematics(q, plot=False):
-    """ Forward kinematics 
-
-    Args:
-        q (np.array): measured joint values in the array [7x1]
-        plot (bool): False
-
-    Returns:
-        T0e (np.matrix): HTM of the tool in the 0 frame [world frame] [4x4]
-    """
-
-    q1 = round(q[0], 4); q2 = round(q[1], 4); q3 = round(q[2], 4); q4 = round(q[3], 4); q5 = round(q[4], 4); q6 = round(q[5],4); q7 = round(q[6],4)
-
-  
-    q1 = round(q[0], 4); q2 = round(q[1], 4); q3 = round(q[2], 4); q4 = round(q[3], 4); q5 = round(q[4], 4); q6 = round(q[5],4); q7 = round(q[6],4)
-
-    M_PI = np.pi
-    # theta, d, alpha, a
-    T01 = TfromDH(q1, 0.333, -M_PI/2, 0.)
-    T12 = TfromDH(q2, 0, M_PI/2, 0)
-    T23 = TfromDH(q3, 0.316, M_PI/2, 0.0825)
-    T34 = TfromDH(q4, 0, -M_PI/2, -0.0825)
-    T45 = TfromDH(q5, 0.384, M_PI/2, 0.)
-    T56 = TfromDH(q6, 0, M_PI/2, 0.088)
-    T67 = TfromDH(q7, 0.107, 0, 0.)
-    #T7e = np.eye(4)
-
-    T02 = np.matmul(T01, T12)
-    T03 = np.matmul(T02, T23)
-    T04 = np.matmul(T03, T34)
-    T05 = np.matmul(T04, T45)
-    T06 = np.matmul(T05, T56)
-    T0e = np.matmul(T06, T67)
-
-    return poseFromMatrix(T0e)
+from utils import *
 
 def getTfromEuler(t, euler_vector):
     """ Return homogenous transformation matrix (HTM) from translation and the euler vector.
@@ -137,7 +43,6 @@ def get_T(p, T_BW, T_WT, T_BT):
     pass
 
     return nT_point
-
 
 class OrLab1():
     def __init__(self):

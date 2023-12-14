@@ -4,7 +4,11 @@
     <arg name="config_path" value="$(find for_franka_ros)/config/topics.yaml"/>
     
     <!-- Start Gazebo + MoveIt!-->
-    <include file="$(find panda_moveit_config)/launch/demo_gazebo.launch"/>
+    <include file="$(find panda_moveit_config)/launch/demo_gazebo.launch">
+        <!-- By changing transmission parameter we change controller type-->
+        <!-- position, velocity, effort...-->
+        <arg name="transmission" default="position"/>
+    </include>
 
     <!-- Start arm interface -->
     <node pkg="for_franka_ros"  type="for_franka_ros_node" name="control_arm_node" output="screen">
