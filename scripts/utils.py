@@ -28,6 +28,14 @@ def get_poses(poses_data):
             poses.append(normalize_q(pose_msg))
     return poses
 
+def sigmoid(x): 
+
+    return 1/1+np.exp(-x)
+
+def scale_sigmoid(a, x): 
+    
+    return a*sigmoid(x)
+
 # Conversion utils
 def poseFromMatrix(matrix):
     goal_pose = Pose()
@@ -159,7 +167,7 @@ def draw(points_gazebo, points_fk, cart_points, eps):
     ax.scatter(x_, y_, z_ , label="Taylor calculated points")
     ax.set_xlabel('x [m]'); ax.set_xlim([-0.3, 0.3])
     ax.set_ylabel('y [m]'); ax.set_ylim([-0.25, 0.25])
-    ax.set_zlabel('z [m]'); ax.set_zlim([1.0, 1.8])
+    ax.set_zlabel('z [m]'); ax.set_zlim([0.2, 1.2])
     ax.legend(loc='lower right')
     plt.title('End effector path eps={}'.format(eps))
     plt.show()
