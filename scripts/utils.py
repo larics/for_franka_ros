@@ -13,6 +13,7 @@ def read_yaml_file(file_path):
     return data
 
 def get_poses(poses_data): 
+    
     poses = []
     # Accessing individual poses
     for pose in poses_data.get('poses', []):
@@ -142,14 +143,16 @@ def forwardKinematics(q, plot=False):
     T45 = TfromDH(q5, 0.384, M_PI/2, 0.)
     T56 = TfromDH(q6, 0, M_PI/2, 0.088)
     T67 = TfromDH(q7, 0.107, 0, 0.)
-    #T7e = np.eye(4)
+    T7e = np.eye(4); T7e[2, 3] = 0.1; 
 
     T02 = np.matmul(T01, T12)
     T03 = np.matmul(T02, T23)
     T04 = np.matmul(T03, T34)
     T05 = np.matmul(T04, T45)
     T06 = np.matmul(T05, T56)
-    T0e = np.matmul(T06, T67)
+    T07 = np.matmul(T06, T67)
+    T0e = np.matmul(T07, T7e)
+
 
     return poseFromMatrix(T0e)
 

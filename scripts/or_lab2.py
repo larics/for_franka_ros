@@ -41,7 +41,7 @@ class OrLab2():
                              "panda_joint7"]
         self.n_joints = len(self.joint_names)
 
-        self.joint_max = 40.0
+        self.joint_max = 50.0
 
         # Init methods
         self._init_subs()
@@ -92,7 +92,7 @@ class OrLab2():
                 self.ee_points_fk.append(poseToArray(forwardKinematics(q_s)))
 
     def calc_cartesian_midpoint(self, start_pose, end_pose):
-
+        # 1. Zadatak: Dodaj komentar
         # Calculate position average
         x = (start_pose.position.x + end_pose.position.x)/2
         y = (start_pose.position.y + end_pose.position.y)/2
@@ -106,9 +106,11 @@ class OrLab2():
         return np.asarray([x, y, z, qx, qy, qz, qw])
 
     def calc_joint_midpoint(self, start_joint, end_joint):
+        # 1. Zadatak: Dodaj komentar
         return (start_joint + end_joint)/2
 
     def norm(self, q_cmd, q_curr):
+        # 1. Zadatak: Dodaj komentar
         norm = np.sqrt(np.sum((q_cmd - q_curr)**2))
         return norm
 
@@ -130,7 +132,8 @@ class OrLab2():
             qMsg.points.append(qMsgPoint)
         
         self.q_cmd_pub.publish(qMsg)
-        rospy.sleep(rospy.Duration(t))
+        t_off = 0.5
+        rospy.sleep(rospy.Duration(t + t_off))
 
     def execute_cmd(self, q):
         qMsg = JointTrajectory()
@@ -155,6 +158,7 @@ class OrLab2():
             return False
 
     def taylor_interpolate_point(self, start_pose, end_pose, epsilon):
+        # 1. Zadatak: Dodaj komentar
         # Get q0, q1
         q0 = self.get_ik(start_pose)
         q1 = self.get_ik(end_pose)
@@ -173,6 +177,7 @@ class OrLab2():
             return self.taylor_interpolate_list([poseToArray(start_pose), p_wM, poseToArray(end_pose)], epsilon)
 
     def taylor_interpolate_points(self, poses_list, epsilon):
+        # 1. Zadatak: Dodaj komentar
         # IK/FK Poses
         ik_poses = []
         calc_epsilons = []
@@ -210,7 +215,7 @@ class OrLab2():
         
 
     def get_time_parametrization(self, q):
-        # 1. Zadatak
+        # 2. Zadatak
         # Implementiraj vremensku parametrizaciju za Ho-Cookovu metodu
         # interpolacije polinoma (jednadžba 5.24 na str 85 u knjizi
         # Osnove robotike od profesora Kovačića
@@ -222,7 +227,7 @@ class OrLab2():
         return t
 
     def createMpmatrix(self, t):
-        # 2. Zadatak
+        # 3. Zadatak
         # Kako bi mogli izračunati brzine alata u zadanim
         # međutočkama krivulje, potrebno je odrediti matricu Mp
         # Matrica Mp ovisi o vremenskoj parametrizaciji te se odnosi na
@@ -230,7 +235,7 @@ class OrLab2():
         # U navedenoj metodi potrebno je napraviti matricu (np.array)
         # dimenzija (m-2) X (m-4) koristeći već izračunatu vremensku parametrizaciju
         # Prima: listu trajanja pojedinog segmenta putanje
-        # Vraća: Matric Mp dimenzija (m-2) x (m-4)
+        # Vraća: Matrica Mp dimenzija (m-2) x (m-4)
         # Napomena: Jednadžba 5.29 u knjizi profesora Kovačića
 
         m_1 = len(t)
@@ -246,7 +251,7 @@ class OrLab2():
         return Mp
 
     def createMmatrix(self, Mp, t):
-        # 3. zadatak
+        # 4. zadatak
         # Kako bi mogli izračunati brzine alata u svim točkama putanje (na svim segmentima)
         # potrebno je proširiti već dobivenu Mp matricu da uzima u obzir prvi i zadnji
         # segment putanje
@@ -263,7 +268,7 @@ class OrLab2():
         return M
 
     def createApmatrix(self, q, t):
-        # 4. Zadatak
+        # 5. Zadatak
         # Kako bi mogli izračunati brzine alata u zadanim
         # međutočkama krivulje, potrebno je odrediti matricu Ap
         # Matrica Ap ovisi o vremenskoj parametrizaciji i poziciji
@@ -289,7 +294,7 @@ class OrLab2():
         return Ap
 
     def createAmatrix(self, q, t, Ap):
-        # 5. zadatak
+        # 6. zadatak
         # Kako bi mogli izračunati brzine alata u svim točkama putanje (na svim segmentima)
         # potrebno je proširiti već dobivenu Ap matricu da uzima u obzir prvi i zadnji
         # segment putanje
@@ -302,7 +307,7 @@ class OrLab2():
         return A
 
     def calcultate_dq(self, A, M):
-        # 6. zadatak
+        # 7. zadatak
         # Koristeći izračunate A i M matrice, izračunajte brzine
         # zglobova u svim međutočkama (5.50)
         # Nakon toga dodajte prvu i posljednju točku čije
@@ -404,7 +409,6 @@ class OrLab2():
             trajectoryPoint.time_from_start.nsecs = t_.nsecs
             trajectoryMsg.points.append(trajectoryPoint)
 
-
         return trajectoryMsg
 
     def get_dq_max(self, q, dq, t):
@@ -458,7 +462,6 @@ class OrLab2():
         scaling_factor = dq_max_val/self.joint_max
         # Scale to accomodate limits
         t = [round(t_*scaling_factor, 3) for t_ in t]
-
 
         if scaling_factor > 1.0:
             return self.ho_cook(cartesian, t, q, first=False)
@@ -517,7 +520,7 @@ class OrLab2():
         rospy.loginfo("Start pose is: {}".format(start_pose))
         rospy.loginfo("Goal pose is: {}".format(goal_pose))
 
-        eps_ = [0.05, 0.025, 0.015, 0.008]
+        eps_ = [0.5, 0.25, 0.05, 0.0025]
 
         while not rospy.is_shutdown():
             for e in eps_:
