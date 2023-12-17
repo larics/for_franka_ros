@@ -30,6 +30,9 @@ class OrLab2():
         yml_ = os.path.join(rp.get_path("for_franka_ros"), "config/goal_poses.yaml")
         poses_data = read_yaml_file(yml_)
         self.poses = get_poses(poses_data)
+        self.pose_A = self.poses[0]
+        self.pose_B = self.poses[1]
+        self.pose_C = self.poses[2]
 
         # Helper vars
         self.ee_points = []
@@ -41,7 +44,7 @@ class OrLab2():
                              "panda_joint7"]
         self.n_joints = len(self.joint_names)
 
-        self.joint_max = 50.0
+        self.joint_max = 100.0
 
         # Init methods
         self._init_subs()
@@ -63,9 +66,6 @@ class OrLab2():
         rospy.wait_for_service("/control_arm_node/services/get_ik")
         self.get_ik_client = rospy.ServiceProxy("/control_arm_node/services/get_ik", getIk)
         rospy.loginfo("Inverse kinematics initialized!")
-        # Service for changing robotic manipulator controller type
-        #rospy.wait_for_service("/control_arm_node/controllers/start_joint_group_position_controller")
-        #self.change_controller_client = rospy.ServiceProxy("/control_arm_node/controllers/start_joint_group_position_controller", Trigger)
 
     def tool_cb(self, msg):
 
@@ -92,7 +92,7 @@ class OrLab2():
                 self.ee_points_fk.append(poseToArray(forwardKinematics(q_s)))
 
     def calc_cartesian_midpoint(self, start_pose, end_pose):
-        # 1. Zadatak: Dodaj komentar
+
         # Calculate position average
         x = (start_pose.position.x + end_pose.position.x)/2
         y = (start_pose.position.y + end_pose.position.y)/2
@@ -106,18 +106,17 @@ class OrLab2():
         return np.asarray([x, y, z, qx, qy, qz, qw])
 
     def calc_joint_midpoint(self, start_joint, end_joint):
-        # 1. Zadatak: Dodaj komentar
         return (start_joint + end_joint)/2
 
     def norm(self, q_cmd, q_curr):
-        # 1. Zadatak: Dodaj komentar
         norm = np.sqrt(np.sum((q_cmd - q_curr)**2))
         return norm
 
     def execute_cmds(self, q_list):
 
-        dt = 1.0
-        t = scale_sigmoid(10, len(q_list)/2)
+        dt = 0.5
+        if len(q_list) < 5:
+            t = scale_sigmoid(10, len(q_list)/2)
         dt = t/len(q_list)
         # Publish calculated joint values
         qMsg = JointTrajectory()
@@ -132,8 +131,7 @@ class OrLab2():
             qMsg.points.append(qMsgPoint)
         
         self.q_cmd_pub.publish(qMsg)
-        t_off = 0.5
-        rospy.sleep(rospy.Duration(t + t_off))
+        rospy.sleep(rospy.Duration(t))
 
     def execute_cmd(self, q):
         qMsg = JointTrajectory()
@@ -158,7 +156,6 @@ class OrLab2():
             return False
 
     def taylor_interpolate_point(self, start_pose, end_pose, epsilon):
-        # 1. Zadatak: Dodaj komentar
         # Get q0, q1
         q0 = self.get_ik(start_pose)
         q1 = self.get_ik(end_pose)
@@ -177,7 +174,6 @@ class OrLab2():
             return self.taylor_interpolate_list([poseToArray(start_pose), p_wM, poseToArray(end_pose)], epsilon)
 
     def taylor_interpolate_points(self, poses_list, epsilon):
-        # 1. Zadatak: Dodaj komentar
         # IK/FK Poses
         ik_poses = []
         calc_epsilons = []
@@ -209,6 +205,7 @@ class OrLab2():
 
         # Check if norm condition has been satisfied
         if all(calc_epsilons):
+            rospy.loginfo("Taylor error is satisfied, list of points is: {}".format(cartesian_points))
             return cartesian_points
         else:
             return self.taylor_interpolate_points(cartesian_points, epsilon)
@@ -319,7 +316,7 @@ class OrLab2():
 
         return dQ
 
-    # Get B matrices
+      # Get B matrices
     def getBfirstSeg(self, q, dq, t):
 
         T = np.zeros((4, 5))
@@ -458,7 +455,6 @@ class OrLab2():
         #print("q len is: {}".format(len(q)))
         dq_max = self.get_dq_max(q, dq, t)
         dq_max_val = np.max(dq_max) 
-        print("dq_max_val:", dq_max_val)
         scaling_factor = dq_max_val/self.joint_max
         # Scale to accomodate limits
         t = [round(t_*scaling_factor, 3) for t_ in t]
@@ -471,7 +467,7 @@ class OrLab2():
             rospy.loginfo("Publishing trajectory!")
             self.q_cmd_pub.publish(trajectory)
             sum_t = sum(t)
-            print("sum_t is : ", sum_t)
+            rospy.loginfo("Execution duration is : {}".format(sum_t))
             return sum_t
 
     def go_to_pose_ho_cook(self, goal_pose, eps):
@@ -510,29 +506,27 @@ class OrLab2():
 
     def run(self):
         # Initialize starting pose
-        self.pose_pub.publish(self.poses[0])
+        self.pose_pub.publish(self.pose_A)
         # Sleep for 5. seconds
         rospy.sleep(10.0)
-        # Initialize goal pose
-        start_pose = self.poses[0]
-        goal_pose = self.poses[-1]
 
-        rospy.loginfo("Start pose is: {}".format(start_pose))
-        rospy.loginfo("Goal pose is: {}".format(goal_pose))
-
-        eps_ = [0.5, 0.25, 0.05, 0.0025]
+        eps_ = [0.1, 0.05, 0.025, 0.01]
 
         while not rospy.is_shutdown():
             for e in eps_:
-                self.pose_pub.publish(start_pose)
+                self.pose_pub.publish(self.pose_A)
                 rospy.sleep(5)
-                points = self.go_to_pose_ho_cook(goal_pose, e)
-                #rospy.sleep(6) 
+                # Go to point B
+                points = self.go_to_pose_ho_cook(self.pose_B, e)
                 draw(self.ee_points, self.ee_points_fk, points, e)
+                # Go to point C 
+                rospy.sleep(2)
+                points = self.go_to_pose_ho_cook(self.pose_C, e)
+                draw(self.ee_points, self.ee_points_fk, points, e)
+                #points.append(self.go_to_pose_ho_cook(self.pose_C, e))
             break
 
         exit()
-
 
 if __name__ == "__main__":
     lab2 = OrLab2()
