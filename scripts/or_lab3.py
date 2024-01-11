@@ -52,6 +52,8 @@ class OrLab3():
     def _init_publishers(self): 
 
         self.p_cmd_pub = rospy.Publisher("/cartesian_impedance_controller/desired_pose", PoseStamped, queue_size=1)
+        self.q_cmd_pub = rospy.Publisher("/joint_position_trajectory_controller/command", JointTrajectory, queue_size=1)
+
 
     def pose_cb(self, data):
         
@@ -75,6 +77,8 @@ class OrLab3():
         # TODO: Use methods from the run() in or_lab2.py to enable 
         # following straight paths from point to point to draw nice house 
         pass
+
+    # TODO: Add trajectory creation
         
     def run(self):
 
