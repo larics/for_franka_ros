@@ -20,9 +20,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from std_srvs.srv import Trigger
 from for_franka_ros.srv import getIk
 
-class OrLab3(self): 
+class OrLab3(): 
 
     def __init__(self): 
+        # Node initialization 
         rospy.init_node("orlab3", anonymous=True, log_level=rospy.INFO)
         self.tf_listener = TransformListener()
         self.ee_frame_name = "panda_hand_tcp"
@@ -50,37 +51,38 @@ class OrLab3(self):
 
     def _init_publishers(self): 
 
-        self.p_cmd_pub = rospy.Publisher("/cartesian_impedance_controller/desired_pose")
+        self.p_cmd_pub = rospy.Publisher("/cartesian_impedance_controller/desired_pose", PoseStamped, queue_size=1)
 
     def pose_cb(self, data):
         
         self.pose_reciv = True
-        self.current_pose = Pose()
-        self.current_pose.position = data.position
-        self.current_pose.orientation = data.orientation 
+        self.current_pose = PoseStamped()
+        self.current_pose.pose.position = data.position
+        self.current_pose.pose.orientation = data.orientation 
 
     def transform_points(self): 
         pass
 
-    def point_to_point_movement(self): 
+    def point_to_point_movement(self, sleep_time): 
         #TODO: Use methods from the run() in or_lab1.py to enable 
         # point to point movement for particular points to draw a house 
-        pass
+        for i, p in enumerate(self.poses):
+            rospy.loginfo("Sending robot to pose {}: {}".format(i, p)) 
+            p_ = poseToPoseStamped(p)
+            rospy.sleep(sleep_time)
 
     def ho_cook_movement(self): 
         # TODO: Use methods from the run() in or_lab2.py to enable 
         # following straight paths from point to point to draw nice house 
         pass
         
-
-    def run():
+    def run(self):
 
         rospy.sleep(5)
         
         while not rospy.is_shutdown():
-            pass
             # Point to point movement
-            # self.point_to_point_movement()
+            self.point_to_point_movement(5)
             # Ho cook movement 
 
 
@@ -88,4 +90,5 @@ class OrLab3(self):
 
 if __name__ == "__main__": 
 
-    pass
+    orLab = OrLab3();
+    orLab.run()

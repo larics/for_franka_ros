@@ -1,7 +1,7 @@
 import numpy as np
 
 from tf.transformations import quaternion_from_matrix
-from geometry_msgs.msg import  Pose
+from geometry_msgs.msg import  Pose, PoseStamped
 import matplotlib.pyplot as plt
 import yaml
 
@@ -28,6 +28,13 @@ def get_poses(poses_data):
             pose_msg.orientation.w = pose_values.get('qw', 0.0)
             poses.append(normalize_q(pose_msg))
     return poses
+
+def poseToPoseStamped(pose): 
+
+    pStamped = PoseStamped()
+    pStamped.pose.position = pose.position
+    pStamped.pose.orientation = pose.orientation
+    return pStamped
 
 def sigmoid(x): 
 
