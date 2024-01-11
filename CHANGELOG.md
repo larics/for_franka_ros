@@ -1,3 +1,7 @@
+# 3rd lab out
+
+* Added prototype for the `or_lab3.py` 
+
 # 2nd lab out
 
 * Moved a lot of utils into `utils.py`
