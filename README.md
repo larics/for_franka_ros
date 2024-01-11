@@ -35,6 +35,23 @@ python3 or_lab1.py
 
 Topics that are used to control robot are under `control_arm_node` namespace. 
 
+### Real robot [3rd laboratory exercise] 
+
+In order to work with real robot, we need to specify correct `ROS_MASTER_URI` and `ROS_HOSTNAME` 
+setup. 
+
+You can do so with following commands: 
+```
+echo "export ROS_MASTER_URI=http://192.168.150.250:11311" >> ~/.bashrc  
+echo "export ROS_HOSTNAME=<your_ip>" >> ~/.bashrc    
+```
+
+After that you can run your or_lab3 script with: 
+
+```
+python3 or_lab3.py
+```
+
 #### Sidenote
 
 Robot trajectories (paths) while drawing a house won't be straight lines and it is normal and expected. 
