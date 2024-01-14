@@ -469,7 +469,7 @@ class OrLab2():
         # Sleep for 5. seconds
         rospy.sleep(10.0)
 
-        eps_ = [0.03, 0.015, 0.01]
+        eps_ = [0.03, 0.015, 0.01, 0.005]
         while not rospy.is_shutdown():
             for e in eps_:
                 self.pose_pub.publish(self.pose_A)
