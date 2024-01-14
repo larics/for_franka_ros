@@ -2,8 +2,10 @@ import numpy as np
 
 from tf.transformations import quaternion_from_matrix
 from geometry_msgs.msg import  Pose, PoseStamped
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import matplotlib.pyplot as plt
 import yaml
+import rospy
 
 
 # IO utils
@@ -125,6 +127,7 @@ def TfromDH(theta, d, alpha, a):
     T[2,3] = d
     return T
 
+# ORLAB1 forwardKinematics
 def forwardKinematics(q, plot=False):
     """ Forward kinematics 
 
@@ -136,9 +139,6 @@ def forwardKinematics(q, plot=False):
         T0e (np.matrix): HTM of the tool in the 0 frame [world frame] [4x4]
     """
 
-    q1 = round(q[0], 4); q2 = round(q[1], 4); q3 = round(q[2], 4); q4 = round(q[3], 4); q5 = round(q[4], 4); q6 = round(q[5],4); q7 = round(q[6],4)
-
-  
     q1 = round(q[0], 4); q2 = round(q[1], 4); q3 = round(q[2], 4); q4 = round(q[3], 4); q5 = round(q[4], 4); q6 = round(q[5],4); q7 = round(q[6],4)
 
     M_PI = np.pi
@@ -163,6 +163,38 @@ def forwardKinematics(q, plot=False):
 
     return poseFromMatrix(T0e)
 
+def createTrajectory(self, q, dq, t):
+
+    trajectoryMsg = JointTrajectory()
+    trajectoryMsg.joint_names = self.joint_names
+
+    dq = list(dq.T)
+    i = 0
+    for k, (q, dq) in enumerate(zip(q, dq)):
+        try:
+            i += t[k]
+            t_ = rospy.Time.from_sec(i)
+        except Exception as e:
+            t_ = rospy.Time.from_sec(np.ceil(i))
+        trajectoryPoint = JointTrajectoryPoint()
+        trajectoryPoint.positions = q
+        trajectoryPoint.velocities = dq
+        trajectoryPoint.time_from_start.secs = t_.secs
+        trajectoryPoint.time_from_start.nsecs = t_.nsecs
+        trajectoryMsg.points.append(trajectoryPoint)
+
+    return trajectoryMsg
+
+def createSimpleTrajectory(names, q_current, q_goal): 
+
+    traj = JointTrajectory()
+    traj.joint_names = names
+    traj.points = [q_current, q_goal]
+    
+    return traj
+    
+
+    
 # Plt utils
 def draw(points_gazebo, points_fk, cart_points, eps):
     fig = plt.figure()
