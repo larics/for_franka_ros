@@ -3,6 +3,7 @@
 
 import os
 import rospy
+import copy
 import numpy as np
 from math import sqrt
 
@@ -44,6 +45,8 @@ class OrLab2():
                              "panda_joint7"]
         self.n_joints = len(self.joint_names)
 
+                # IK/FK Poses
+        self.taylor_points = []
         self.joint_max = 100.0
 
         # Init methods
@@ -109,20 +112,19 @@ class OrLab2():
         return (start_joint + end_joint)/2
 
     def norm(self, q_cmd, q_curr):
-        norm = np.sqrt(np.sum((q_cmd - q_curr)**2))
+        norm = np.sqrt(np.sum((q_cmd[:3] - q_curr[:3])**2))
         return norm
 
     def execute_cmds(self, q_list):
 
         dt = 0.5
+        t = 5
         if len(q_list) < 5:
             t = scale_sigmoid(10, len(q_list)/2)
         dt = t/len(q_list)
         # Publish calculated joint values
         qMsg = JointTrajectory()
         qMsg.joint_names = self.joint_names
-        # Remove False that gets into from moveit
-        q_list.pop()
         for i, q in enumerate(q_list):
             qMsgPoint = JointTrajectoryPoint()
             q_ = list(q); 
@@ -157,58 +159,31 @@ class OrLab2():
 
     def taylor_interpolate_point(self, start_pose, end_pose, epsilon):
         # Get q0, q1
-        q0 = self.get_ik(start_pose)
-        q1 = self.get_ik(end_pose)
+        q0 = self.get_ik(arrayToPose(start_pose))
+        q1 = self.get_ik(arrayToPose(end_pose))
         # get qm
         qm = self.calc_joint_midpoint(q0, q1)
         # calculate w_m
-        p_wm = forwardKinematics(qm)
+        p_wm = poseToArray(forwardKinematics(qm))
         # calculate w_M
-        p_wM = self.calc_cartesian_midpoint(start_pose, end_pose)
-        # calcukate norm between w_m and w_M
-        if (self.norm(p_wm, p_wM) < epsilon):
+        p_wM = self.calc_cartesian_midpoint(arrayToPose(start_pose), arrayToPose(end_pose))
+        n = self.norm(p_wm, p_wM)
+        if (n < epsilon):
             rospy.loginfo("Taylor interpolation finished")
-            return [start_pose, p_wM, end_pose]
+            self.taylor_points.append(start_pose); 
+            self.taylor_points.append(p_wM)
+            self.taylor_points.append(end_pose) 
         else:
             rospy.loginfo("Taylor interpolation, condition not satisfied")
-            return self.taylor_interpolate_list([poseToArray(start_pose), p_wM, poseToArray(end_pose)], epsilon)
+            return self.taylor_interpolate_points([start_pose, p_wM, end_pose], epsilon)
 
     def taylor_interpolate_points(self, poses_list, epsilon):
-        # IK/FK Poses
-        ik_poses = []
-        calc_epsilons = []
-        cartesian_points = []
-        added_joints = []
-        added_points = []
-
-        for i, pose in enumerate(poses_list):
-            if i == 0:
-                cartesian_points.append(pose)
-            if i > 0 and i < len(poses_list):
-                avg_pt = self.calc_cartesian_midpoint(arrayToPose(poses_list[i - 1]), arrayToPose(pose))
-                avg_joint = self.calc_joint_midpoint(self.get_ik(poses_list[i - 1]), self.get_ik(pose))
-                cartesian_points.append(avg_pt)
-                added_points.append(avg_pt)
-                added_joints.append(avg_joint)
-            if i == len(poses_list) - 1: 
-                cartesian_points.append(pose)
-
-        for i, pose in enumerate(added_points):
-            ik_pose = self.get_ik(pose)
-            ik_poses.append(ik_pose)
-
-        fk_pos1 = [poseToArray(forwardKinematics(q)) for q in added_joints]
-        fk_pos2 = [poseToArray(forwardKinematics(ik_pose)) for ik_pose in ik_poses]
-
-        for i, (fk_p1, fk_p2) in enumerate(zip(fk_pos1, fk_pos2)):
-            calc_epsilons.append(self.norm(fk_p1, fk_p2) < epsilon)
-
-        # Check if norm condition has been satisfied
-        if all(calc_epsilons):
-            rospy.loginfo("Taylor error is satisfied, list of points is: {}".format(cartesian_points))
-            return cartesian_points
-        else:
-            return self.taylor_interpolate_points(cartesian_points, epsilon)
+        
+        for i, p in enumerate(poses_list):
+            if i < len(poses_list) - 1: 
+                print(self.taylor_interpolate_point(p, poses_list[i+1], epsilon))
+          
+        return self.taylor_points
         
 
     def get_time_parametrization(self, q):
@@ -472,7 +447,7 @@ class OrLab2():
         # Calculate taylor points
         points = self.taylor_interpolate_points([poseToArray(self.current_pose), poseToArray(goal_pose)], eps)
         # get ik_poses from calculated_taylor_points (remove first point)
-        ik_poses = [self.get_ik(pose) for pose in points[1:]]
+        ik_poses = [self.get_ik(arrayToPose(pose)) for pose in points[1:]]
         duration = rospy.Time.now().to_sec() - start_time
         # Info print
         rospy.loginfo("Number of points is: {}".format(len(points)))
@@ -480,6 +455,9 @@ class OrLab2():
         # Execute q_cmds
         self.execute_cmds(ik_poses)
         return points
+    
+    def reset_taylor(self): 
+        self.taylor_points = []
 
     def run(self):
         # Initialize starting pose
@@ -487,15 +465,15 @@ class OrLab2():
         # Sleep for 5. seconds
         rospy.sleep(10.0)
 
-        eps_ = [0.025, 0.015]
-
+        eps_ = [0.025, 0.015, 0.01]
         while not rospy.is_shutdown():
             for e in eps_:
                 self.pose_pub.publish(self.pose_A)
                 rospy.sleep(5)
                 # Go to point B
-                points = self.go_to_pose_ho_cook(self.pose_C, e)
+                points = self.go_to_pose_taylor(self.poses[4], e)
                 draw(self.ee_points, self.ee_points_fk, points, e)
+                self.reset_taylor()
                 # Go to point C 
                 rospy.sleep(2)
                 #points = self.go_to_pose_ho_cook(self.pose_C, e)
