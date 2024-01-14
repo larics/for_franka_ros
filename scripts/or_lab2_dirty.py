@@ -47,7 +47,7 @@ class OrLab2():
 
                 # IK/FK Poses
         self.taylor_points = []
-        self.joint_max = 100.0
+        self.joint_max = 30.0
 
         # Init methods
         self._init_subs()
@@ -112,7 +112,7 @@ class OrLab2():
         return (start_joint + end_joint)/2
 
     def norm(self, q_cmd, q_curr):
-        norm = np.sqrt(np.sum((q_cmd[:3] - q_curr[:3])**2))
+        norm = np.sqrt(np.sum((q_cmd[:3]- q_curr[:3])**2))
         return norm
 
     def execute_cmds(self, q_list):
@@ -170,21 +170,22 @@ class OrLab2():
         n = self.norm(p_wm, p_wM)
         if (n < epsilon):
             rospy.loginfo("Taylor interpolation finished")
-            self.taylor_points.append(start_pose); 
-            self.taylor_points.append(p_wM)
-            self.taylor_points.append(end_pose) 
+            # It can be added nicer for sure! 
+            self.taylor_points.append([np.round(s, 7) for s in start_pose]); 
+            self.taylor_points.append([np.round(n, 7) for n in p_wM])
+            #self.taylor_points.append([np.round(e, 5) for e in end_pose]) 
         else:
             rospy.loginfo("Taylor interpolation, condition not satisfied")
             return self.taylor_interpolate_points([start_pose, p_wM, end_pose], epsilon)
 
     def taylor_interpolate_points(self, poses_list, epsilon):
-        
         for i, p in enumerate(poses_list):
             if i < len(poses_list) - 1: 
-                print(self.taylor_interpolate_point(p, poses_list[i+1], epsilon))
+                self.taylor_interpolate_point(p, poses_list[i+1], epsilon)
+        
+        print("Completed taylor: \n {}".format(self.taylor_points))
           
         return self.taylor_points
-        
 
     def get_time_parametrization(self, q):
 
@@ -388,10 +389,11 @@ class OrLab2():
 
         # List of joint positions that must be visited
         if first:
-            q = [self.get_ik(pos) for pos in cartesian]
+            q = [self.get_ik(arrayToPose(pos)) for pos in cartesian]
             #print("Inverse kinematics q is: {}".format(q))
             # Time parametrization
             t = self.get_time_parametrization(q)
+            print("Initial parametrization is: {}".format(t))
         # Ap matrix
         Ap = self.createApmatrix(q, t)
         #print("Ap [{}] is: {}".format(Ap.shape, Ap))
@@ -409,9 +411,10 @@ class OrLab2():
         dq_max_val = np.max(dq_max) 
         scaling_factor = dq_max_val/self.joint_max
         # Scale to accomodate limits
-        t = [round(t_*scaling_factor, 3) for t_ in t]
+        t = [round(t_*scaling_factor, 5) for t_ in t]
 
         if scaling_factor > 1.0:
+            print("Scaling factor is: {}".format(scaling_factor))
             return self.ho_cook(cartesian, t, q, first=False)
 
         else:
@@ -429,6 +432,7 @@ class OrLab2():
         start_time = rospy.Time.now().to_sec()
         # Calculate Taylor points
         points = self.taylor_interpolate_points([poseToArray(self.current_pose), poseToArray(goal_pose)], eps)
+        # TODO: Normalize quaternion before hocook 
         # Add time parametrization
         exec_duration = self.ho_cook(points)
         rospy.sleep(exec_duration)
@@ -465,13 +469,13 @@ class OrLab2():
         # Sleep for 5. seconds
         rospy.sleep(10.0)
 
-        eps_ = [0.025, 0.015, 0.01]
+        eps_ = [0.03, 0.015, 0.01]
         while not rospy.is_shutdown():
             for e in eps_:
                 self.pose_pub.publish(self.pose_A)
                 rospy.sleep(5)
                 # Go to point B
-                points = self.go_to_pose_taylor(self.poses[4], e)
+                points = self.go_to_pose_ho_cook(self.poses[4], e)
                 draw(self.ee_points, self.ee_points_fk, points, e)
                 self.reset_taylor()
                 # Go to point C 
