@@ -42,6 +42,7 @@ class OrLab3():
         self.q_init = [-0.488, -0.641, 0.553, -2.17, -0.525, 3.19, 0.05]
         self.real_robot = False
         self.taylor_points = []
+        self.joint_max = 30.0
 
         if self.real_robot: 
             self.p_state_name = "/franka_state_controller/ee_pose"
@@ -50,9 +51,7 @@ class OrLab3():
             self.p_state_name = "/control_arm_node/tool/current_pose"
             self.q_state_name = "/joint_states"
             self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6",
-                                "panda_joint7"]
-        
- 
+                                "panda_joint7"] 
 
         # Initialize subscribers and publishers
         self._init_publishers()
@@ -161,7 +160,7 @@ class OrLab3():
         #print("M [{}] is: {}".format(M.shape, M))
         dq = np.matmul(A, np.linalg.inv(M))
         #print("dq [{}] is: {}".format(dq.shape, dq))
-        zeros = np.zeros((self.n_joints, 1)); dq = np.hstack((zeros, dq)); dq = np.hstack((dq, zeros))
+        zeros = np.zeros((n, 1)); dq = np.hstack((zeros, dq)); dq = np.hstack((dq, zeros))
         #print("q len is: {}".format(len(q)))
         dq_max = get_dq_max(q, dq, t)
         dq_max_val = np.max(dq_max) 
@@ -215,7 +214,14 @@ class OrLab3():
         
     def run(self):
 
-       pass
+        rospy.sleep(5)
+        eps = [0.03, 0.02, 0.015, 0.1]
+        while not rospy.is_shutdown():
+            if self.p_reciv and self.q_reciv:
+                
+            else: 
+                rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))
+            # Ho cook movement 
 
 
 
