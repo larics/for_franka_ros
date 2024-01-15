@@ -142,7 +142,6 @@ class OrLab2():
         q_p = JointTrajectoryPoint()
         q_p.positions = q
         qMsg.points = q_p
-        print(qMsg)
         self.q_cmd_pub.publish(qMsg)
 
     def get_ik(self, wanted_pose):
@@ -183,7 +182,7 @@ class OrLab2():
             if i < len(poses_list) - 1: 
                 self.taylor_interpolate_point(p, poses_list[i+1], epsilon)
         
-        print("Completed taylor: \n {}".format(self.taylor_points))
+        rospy.logdebug("Completed taylor: \n {}".format(self.taylor_points))
           
         return self.taylor_points
 
