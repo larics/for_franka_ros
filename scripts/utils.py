@@ -163,10 +163,10 @@ def forwardKinematics(q, plot=False):
 
     return poseFromMatrix(T0e)
 
-def createTrajectory(self, q, dq, t):
+def createTrajectory(joint_names, q, dq, t):
 
     trajectoryMsg = JointTrajectory()
-    trajectoryMsg.joint_names = self.joint_names
+    trajectoryMsg.joint_names = joint_names
 
     dq = list(dq.T)
     i = 0
@@ -185,13 +185,40 @@ def createTrajectory(self, q, dq, t):
 
     return trajectoryMsg
 
-def createSimpleTrajectory(names, q_current, q_goal): 
+def createSimpleTrajectory(joint_names, q_curr, q_goal, t_move): 
 
     traj = JointTrajectory()
-    traj.joint_names = names
-    traj.points = [q_current, q_goal]
+    traj.joint_names = joint_names
+    t_q_current = JointTrajectoryPoint()
+    t_q_goal = JointTrajectoryPoint()
+    t_q_current.positions = q_curr
+    t_q_goal.positions = q_goal
+    t_q_goal.time_from_start.secs = t_move
+    traj.points = [t_q_current, t_q_goal]
     
+    print(traj)
     return traj
+
+def calc_cartesian_midpoint(start_pose, end_pose):
+
+    # Calculate position average
+    x = (start_pose.position.x + end_pose.position.x)/2
+    y = (start_pose.position.y + end_pose.position.y)/2
+    z = (start_pose.position.z + end_pose.position.z)/2
+    # Keep orientation same as in starting points
+    qx = (start_pose.orientation.x)
+    qy = (start_pose.orientation.y)
+    qz = (start_pose.orientation.z)
+    qw = (start_pose.orientation.w)
+
+    return np.asarray([x, y, z, qx, qy, qz, qw])
+
+def calc_joint_midpoint(start_joint, end_joint):
+    return (start_joint + end_joint)/2
+
+def norm(q_cmd, q_curr):
+    norm = np.sqrt(np.sum((q_cmd[:3]- q_curr[:3])**2))
+    return norm
 
 # HoCook utils
 def get_time_parametrization(q):
@@ -343,7 +370,31 @@ def getMaxAcc(B, t):
     q_dot_max = 2*B[:, 2] + 6*B[:, 3]*t
 
     return q_dot_max
-    
+
+def get_dq_max(q, dq, t):
+
+    Bk = []; dqmax = []
+    for k, t_ in enumerate(t):
+        if k == 0:
+            Bfirst = getBfirstSeg(q, dq, t)
+            dqmax_ = getMaxSpeedFirstSeg(Bfirst, t)
+            dqmax.append(dqmax_)
+        # Calculate stuff for all segments without first > 0 and last len(t) - 1
+        if k > 0 and k < len(t) - 1:
+            Bk_ = getBanySeg(q, dq, t, k)
+            Bk.append(Bk_)
+            dqmax_ = getMaxSpeedAnySeg(Bk_, t,  k)
+            dqmax.append(dqmax_)
+        if k == len(t) - 1 :
+            Blast = getBLastSeg(q, dq, t)
+            dqmax_ = getMaxSpeedLastSeg(Blast, t)
+            dqmax.append(dqmax_)
+
+    dqmax = np.asarray(dqmax).T                     # Returns indices (np.argmax(dq_max, axis=1))
+    dqmax = np.amax(dqmax, axis=1)                  # Returns values axis = 0 -> column-wise, axis=1, row-wise
+                                                    # print(np.amax(dq_max, axis=1))
+    return dqmax
+
 # Plt utils
 def draw(points_gazebo, points_fk, cart_points, eps):
     fig = plt.figure()
