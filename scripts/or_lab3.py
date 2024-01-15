@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 
 from utils import *
 from math import sqrt
-from tf import TransformListener
 from rospkg import RosPack
 
+from tf import TransformListener, LookupException, ConnectivityException, ExtrapolationException
 from tf.transformations import quaternion_from_matrix
 from geometry_msgs.msg import PoseStamped, Pose, Point
 from sensor_msgs.msg import JointState
@@ -42,7 +42,8 @@ class OrLab3():
         self.q_init = [-0.488, -0.641, 0.553, -2.17, -0.525, 3.19, 0.05]
         self.real_robot = True
         self.taylor_points = []
-        self.joint_max = 50.0
+        self.ee_points = []; self.ee_points_fk = []
+        self.joint_max = 50
         self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6",
                                 "panda_joint7"] 
 
@@ -89,8 +90,11 @@ class OrLab3():
         self.q_curr = JointState()
         self.q_curr.header = data.header
         self.q_curr.name = data.name
-        positions = data.position
-        self.q_curr.position = positions[:-2]
+        if self.real_robot: 
+            positions = data.position
+        else: 
+            positions = data.position[:-2]
+        self.q_curr.position = positions
         self.q_curr.velocity = data.velocity
         self.q_curr.effort = data.effort
 
@@ -142,7 +146,7 @@ class OrLab3():
                 self.taylor_interpolate_point(p, poses_list[i+1], epsilon)
         
         #self.taylor_points.append(poses_list[-1])
-        rospy.logdebug("Completed taylor: \n {}".format(self.taylor_points))
+        #rospy.logdebug("Completed taylor: \n {}".format(self.taylor_points))
         return self.taylor_points
     
     def ho_cook(self, cartesian, t = None, q=None, first = True):
@@ -150,11 +154,11 @@ class OrLab3():
         # List of joint positions that must be visited
         if first:
             q = [self.get_ik(arrayToPose(pos)) for pos in cartesian]
-            #print("Inverse kinematics q is: {}".format(q))
+            rospy.logdebug("Inverse kinematics q is: {}".format(q))
             # Time parametrization
             t = get_time_parametrization(q)
+            t = [ti for ti in t]
             print("Initial parametrization is: {}".format(t))
-
         n = len(self.joint_names)
         # Ap matrix
         Ap = createApmatrix(n, q, t)
@@ -162,31 +166,44 @@ class OrLab3():
         Mp = createMpmatrix(t)
         #print("Mp [{}] is: {}".format(Mp.shape, Mp))
         A = createAmatrix(n, q, t, Ap)
-        #print("A [{}] is: {}".format(A.shape, A))
+        print("A [{}] is: {}".format(A.shape, A))
         M = createMmatrix(Mp, t)
-        #print("M [{}] is: {}".format(M.shape, M))
+        print("M [{}] is: {}".format(M.shape, M))
         dq = np.matmul(A, np.linalg.inv(M))
         #print("dq [{}] is: {}".format(dq.shape, dq))
         zeros = np.zeros((n, 1)); dq = np.hstack((zeros, dq)); dq = np.hstack((dq, zeros))
-        #print("q len is: {}".format(len(q)))
         dq_max = get_dq_max(q, dq, t)
-        dq_max_val = np.max(dq_max) 
-        scaling_factor = dq_max_val/self.joint_max
-        # Scale to accomodate limits
-        t = [round(t_*scaling_factor, 5) for t_ in t]
-
-        if scaling_factor > 1.0:
-            print("Scaling factor is: {}".format(scaling_factor))
-            return self.ho_cook(cartesian, t, q, first=False)
-
-        else:
-            sk = 5
-            t = sk * t
-            trajectory = createTrajectory(self.joint_names, q, dq, t)
-            rospy.loginfo("Publishing trajectory!")
+        #print("q len is: {}".format(len(q)))
+        optimize_time = True
+        if optimize_time: 
+            dq_max = get_dq_max(q, dq, t)
+            exit()
+            #   print("dq_max is: {}".format(dq_max_val))
+            ddq = get_ddq_max(q, dq, t)
+            ddq.insert(0, np.array([0, 0, 0, 0, 0, 0, 0]))
+            ddq.append(np.array([0, 0, 0, 0, 0, 0, 0]))
+            print("ddq: {}".format(ddq))
+            dq_max_val = np.max(dq_max) 
+            scaling_factor = dq_max_val/self.joint_max
+            # Scale to accomodate limits
+            t = [round(t_*scaling_factor, 5) for t_ in t]
+            if scaling_factor > 1.0:
+                print("Scaling factor is: {}".format(scaling_factor))
+                return self.ho_cook(cartesian, t, q, first=False)
+            else:
+                sk = 5
+                t = sk * t
+                trajectory = createTrajectory(self.joint_names, q, dq, ddq, t)
+                rospy.loginfo("Publishing trajectory!")
+                exit()
+                self.q_cmd_pub.publish(trajectory)
+                sum_t = sum(t)
+                rospy.loginfo("Execution duration is : {}".format(sum_t))
+                return sum_t
+        else: 
+            trajectory = createTrajectory(self.joint_names, q, dq, t_)
             self.q_cmd_pub.publish(trajectory)
             sum_t = sum(t)
-            rospy.loginfo("Execution duration is : {}".format(sum_t))
             return sum_t
     
     def go_to_init_pose(self): 
@@ -229,7 +246,7 @@ class OrLab3():
     def run(self):
 
         rospy.sleep(5)
-        eps = [0.03, 0.02, 0.01, 0.005]
+        eps = [0.03, 0.02, 0.01, 0.005, 0.003]
         while not rospy.is_shutdown():
             if self.p_reciv and self.q_reciv:
                 # Point to point movement
@@ -237,7 +254,13 @@ class OrLab3():
                 rospy.sleep(5)
                 #self.go_to_points(self.poses, 5, 5)
                 for e_ in eps: 
-                
+                    self.go_to_init_pose()
+                    rospy.sleep(5)
+                    #t, points = self.go_to_pose_taylor(self.poses[2], e_)
+                    #self.reset_taylor()
+                    t, points = self.go_to_pose_ho_cook(self.poses[4], e_)
+                    rospy.sleep(t)
+                    self.reset_taylor()
             else: 
                 rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))
             # Ho cook movement 

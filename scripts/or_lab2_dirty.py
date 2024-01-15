@@ -389,7 +389,7 @@ class OrLab2():
         # List of joint positions that must be visited
         if first:
             q = [self.get_ik(arrayToPose(pos)) for pos in cartesian]
-            #print("Inverse kinematics q is: {}".format(q))
+            print("Inverse kinematics q is: {}".format(q))
             # Time parametrization
             t = self.get_time_parametrization(q)
             print("Initial parametrization is: {}".format(t))
