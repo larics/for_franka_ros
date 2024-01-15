@@ -192,8 +192,157 @@ def createSimpleTrajectory(names, q_current, q_goal):
     traj.points = [q_current, q_goal]
     
     return traj
-    
 
+# HoCook utils
+def get_time_parametrization(q):
+
+    t = []
+    for k, qk in enumerate(q):
+        try:
+            tk_1 = np.sqrt(np.sum((q[k+1] - q[k])**2))
+            t.append(tk_1)
+        except Exception as e:
+            pass
+
+    rospy.loginfo("Finished time parametrization, segment num, m-1: {}".format(len(t)))
+
+    return t
+
+def createMpmatrix(t):
+    # Matrix dimensions are (m - 2) x (m - 4)
+    # t dimensions are m-1
+
+    m_1 = len(t)
+    Mp = np.zeros((m_1 - 1, m_1 - 3))
+    for i, t_ in enumerate(t):
+        try:
+            Mp[i, i] =  t[i+2]
+            Mp[i + 1, i] = 2*(t[i+1] + t[i+2])
+            Mp[i + 2, i] = t[i+1]
+
+        except Exception as e:
+            pass
+
+    rospy.loginfo("Finished adding elements to the Mp matrix, dimensions (m-2) x (m-4) : {}".format(Mp.shape))
+
+    return Mp
+
+def createMmatrix(Mp, t):
+    # Matrix dimensions are (m - 2) x (m - 2)
+
+    m_1 = len(t)
+    M1col = np.zeros((m_1 - 1, 1))
+    Mlcol = np.zeros((m_1 - 1, 1))
+
+    M1col[0, 0] = 3 /t[0] + 2/t[1]
+    M1col[1, 0] = 1 /t[1]
+    Mlcol[-2, 0] = 1 /t[-2]
+    Mlcol[-1, 0] = 2/t[-2] + 3/t[-1]
+
+    M = np.hstack((M1col, Mp))
+    M = np.hstack((M, Mlcol))
+
+    return M
+
+def createApmatrix(n, q, t):
+    # Matrix dimensions are n x (m - 4)
+    # t dimensions are m-1
+
+    m_1 = len(t)
+    Ap = np.zeros((n, m_1 - 3))
+    for i , t_ in enumerate(t):
+        try:
+            c = 3/(t[i+1] * t[i+2])
+            bracket = t[i+1]**2*(q[i+2] - q[i+1]) + t[i+2]**2*(q[i+1] - q[i])
+            Ap[:, i] = c * bracket
+        except Exception as e:
+            pass
+
+    rospy.loginfo("Finished adding elements to the Ap matrix, dimensions n x (m-4) : {}".format(Ap.shape))
+
+    return Ap
+
+def createAmatrix(n, q, t, Ap):
+    # Matrix dimensions are n x (m - 2)
+    # t dimensions are m-1
+
+    A1col = 6/t[0]**2 * (q[1] - q[0]) + 3/t[1] * (q[2] - q[1])
+    Alcol = 3/t[-1]**2 * (q[-1] - q[-2]) + 6/t[-1]**2*(q[-1] - q[-2])
+
+    A = np.hstack((A1col.reshape(n, 1), Ap))
+    A = np.hstack((A, Alcol.reshape(n, 1)))
+
+    return A
+
+# Get B matrices
+def getBfirstSeg(q, dq, t):
+
+    T = np.zeros((4, 5))
+    T[0, 0] = 1;            T[0, 3] = -4/t[0]**3;   T[0, 4] = 3/t[0]**4
+    T[1, 3] = 4/t[0]**3;    T[1, 4] = -3/t[0]**4;
+    T[3, 3] = -1/t[0]**2;   T[3, 4] = 1/t[0]**3;
+
+    Q = np.array((q[0], q[1], dq[:, 0], dq[:, 1])).T # 6 x 4
+
+    # (6 x 4) x (4 x 5)
+    BfirstSeg = np.matmul(Q, T) # 6 x 5 dimensions
+
+    print("Bfirst: {}".format(BfirstSeg))
+
+    return BfirstSeg
+
+def getBanySeg(q, dq, t, k):
+
+    T = np.zeros((4, 5))
+    T[0, 0] = 1;            T[0, 3] = -3/t[k]**2;   T[0, 4] = 2/t[k]**3;
+    T[1, 3] = 3/t[k]**2;    T[1, 4] = -2/t[k]**3;
+    T[2, 1] = 1;            T[2, 2] = -2/t[k];      T[2, 3] = 1/t[k]**2;
+    T[3, 2] = -1/t[k];      T[3, 3] = 1/t[k]**2;
+
+    # Fix indexing (First seg, k=1, q[k-1] = q[0], but has to be q[1], q[2])
+    k = k + 1
+    Q = np.array((q[k-1], q[k], dq[:, k-1], dq[:, k])).T
+
+    BkSeg = np.matmul(Q, T)
+
+    return BkSeg
+
+def getBLastSeg(q, dq, t):
+
+    T = np.zeros((4, 5))
+    T[0, 0] = 1;            T[0, 2] = -6/t[-1]**2;  T[0, 3] = 8/t[-1]**2; T[0, 4] = -3/t[-1]**4;
+    T[1, 2] = 6/t[-1]**2;   T[1, 3] = -8/t[-1]**3;  T[1, 4] = 3/t[-1]**4;
+    T[2, 1] = 1;            T[2, 2] = -3/t[-1];     T[2, 3] = 3/t[-1]**2; T[2, 4] = -1/t[-1]**3;
+
+    Q = np.array((q[-2], q[-1], dq[: ,-2], dq[:, -1])).T
+
+    BlastSeg = np.matmul(Q, T)
+
+    return BlastSeg
+
+def getMaxSpeedFirstSeg(B, t):
+
+    q_max = B[:, 1] + 2 * B[:, 2]*t[0] + 3*B[:, 3]*t[0]**2 + 4*B[:, 4]*t[0]**3
+
+    return q_max
+
+def getMaxSpeedAnySeg(B, t, k):
+
+    q_max = B[:, 1] + 2*B[:, 2]*t[k] + 3*B[:, 3]*t[k]**2
+
+    return q_max
+
+def getMaxSpeedLastSeg(B, t):
+
+    q_max = B[:, 1] + 2*B[:, 2]*t[-1] + 3*B[:, 3]*t[-1]**2 + 4*B[:, 4]*t[-1]**3
+
+    return q_max
+
+def getMaxAcc(B, t):
+
+    q_dot_max = 2*B[:, 2] + 6*B[:, 3]*t
+
+    return q_dot_max
     
 # Plt utils
 def draw(points_gazebo, points_fk, cart_points, eps):
