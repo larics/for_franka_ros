@@ -23,7 +23,7 @@ class OrLab3():
 
     def __init__(self): 
         # Node initialization 
-        rospy.init_node("orlab3", anonymous=True, log_level=rospy.INFO)
+        rospy.init_node("orlab3", anonymous=True, log_level=rospy.DEBUG)
         self.tf_listener = TransformListener()
         self.ee_frame_name = "panda_hand_tcp"
 
@@ -40,18 +40,19 @@ class OrLab3():
 
         # Init pose
         self.q_init = [-0.488, -0.641, 0.553, -2.17, -0.525, 3.19, 0.05]
-        self.real_robot = False
+        self.real_robot = True
         self.taylor_points = []
-        self.joint_max = 30.0
+        self.joint_max = 50.0
+        self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6",
+                                "panda_joint7"] 
 
         if self.real_robot: 
-            self.p_state_name = "/franka_state_controller/ee_pose"
+            self.p_state_name = "/control_arm_node/tool/current_pose"
             self.q_state_name = "/franka_state_controller/joint_states"
         else: 
             self.p_state_name = "/control_arm_node/tool/current_pose"
             self.q_state_name = "/joint_states"
-            self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6",
-                                "panda_joint7"] 
+            
 
         # Initialize subscribers and publishers
         self._init_publishers()
@@ -105,11 +106,15 @@ class OrLab3():
             rospy.logwarn("Service call failed: {}".format(e))
             return False
         
+    def reset_taylor(self): 
+        self.taylor_points = []
+        
     def transform_points(self): 
         pass
 
     # Second lab HoCook
     def taylor_interpolate_point(self, start_pose, end_pose, epsilon):
+
         # Get q0, q1
         q0 = self.get_ik(arrayToPose(start_pose))
         q1 = self.get_ik(arrayToPose(end_pose))
@@ -131,11 +136,13 @@ class OrLab3():
             return self.taylor_interpolate_points([start_pose, p_wM, end_pose], epsilon)
 
     def taylor_interpolate_points(self, poses_list, epsilon):
+        # Hardcode initial starting point to be sure that IK doesn't fuck it up!
         for i, p in enumerate(poses_list):
             if i < len(poses_list) - 1: 
                 self.taylor_interpolate_point(p, poses_list[i+1], epsilon)
+        
+        #self.taylor_points.append(poses_list[-1])
         rospy.logdebug("Completed taylor: \n {}".format(self.taylor_points))
-          
         return self.taylor_points
     
     def ho_cook(self, cartesian, t = None, q=None, first = True):
@@ -173,26 +180,14 @@ class OrLab3():
             return self.ho_cook(cartesian, t, q, first=False)
 
         else:
+            sk = 5
+            t = sk * t
             trajectory = createTrajectory(self.joint_names, q, dq, t)
             rospy.loginfo("Publishing trajectory!")
             self.q_cmd_pub.publish(trajectory)
             sum_t = sum(t)
             rospy.loginfo("Execution duration is : {}".format(sum_t))
             return sum_t
-
-    def go_to_pose_ho_cook(self, goal_pose, eps):
-
-        # Reset saved ee_points and fk points
-        self.ee_points = []; self.ee_points_fk = []
-        start_time = rospy.Time.now().to_sec()
-        # Calculate Taylor points
-        points = self.taylor_interpolate_points([poseToArray(self.p_curr.pose), poseToArray(goal_pose)], eps)
-        # TODO: Normalize quaternion before hocook 
-        # Add time parametrization
-        exec_duration = self.ho_cook(points)
-        rospy.sleep(exec_duration)
-        #draw(self.ee_points, self.ee_points_fk, points, eps)
-        return points
     
     def go_to_init_pose(self): 
         rospy.loginfo("Going to init pose")
@@ -204,20 +199,44 @@ class OrLab3():
         # point to point movement for particular points to draw a house 
         for i, p in enumerate(poses):
             rospy.loginfo("Sending robot to pose {}: {}".format(i, p))
-            q_start, q_end = JointTrajectoryPoint(), JointTrajectoryPoint() 
             trajectory = createSimpleTrajectory(self.joint_names, self.q_curr.position, self.get_ik(p), t_move)
             self.q_cmd_pub.publish(trajectory)
             rospy.sleep(sleep_time)
     
+    def go_to_pose_taylor(self, goal_pose, eps): 
+        points = self.taylor_interpolate_points([poseToArray(self.p_curr.pose), poseToArray(goal_pose)], eps)
+        points = [self.get_ik(arrayToPose(p)) for p in points]
+        duration, trajectory = createTaylorTrajectory(self.joint_names, points, dt=2)
+        self.q_cmd_pub.publish(trajectory)
+        rospy.sleep(duration)
+        return duration, trajectory
+    
+    def go_to_pose_ho_cook(self, goal_pose, eps):
 
-    # TODO: Add trajectory creation
+        # Reset saved ee_points and fk points
+        self.ee_points = []; self.ee_points_fk = []
+        start_time = rospy.Time.now().to_sec()
+        # Calculate Taylor points
+        points = self.taylor_interpolate_points([poseToArray(self.p_curr.pose), poseToArray(goal_pose)], eps)
+        # TODO: Normalize quaternion before hocook 
+        # Add time parametrization
+        exec_duration = self.ho_cook(points)
+        t = exec_duration + 2
+        #draw(self.ee_points, self.ee_points_fk, points, eps)
+        return t, points
+    
         
     def run(self):
 
         rospy.sleep(5)
-        eps = [0.03, 0.02, 0.015, 0.1]
+        eps = [0.03, 0.02, 0.01, 0.005]
         while not rospy.is_shutdown():
             if self.p_reciv and self.q_reciv:
+                # Point to point movement
+                #self.go_to_init_pose() 
+                rospy.sleep(5)
+                #self.go_to_points(self.poses, 5, 5)
+                for e_ in eps: 
                 
             else: 
                 rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))

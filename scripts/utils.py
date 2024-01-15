@@ -185,6 +185,20 @@ def createTrajectory(joint_names, q, dq, t):
 
     return trajectoryMsg
 
+def createTaylorTrajectory(joint_names, q_list, dt): 
+
+    trajectoryMsg = JointTrajectory()
+    trajectoryMsg.joint_names = joint_names
+
+    for k, q in enumerate(q_list): 
+        trajectoryPoint = JointTrajectoryPoint()
+        trajectoryPoint.positions = q
+        trajectoryPoint.time_from_start.secs = k*dt
+        trajectoryMsg.points.append(trajectoryPoint)
+        duration = k*dt
+    
+    return duration, trajectoryMsg
+
 def createSimpleTrajectory(joint_names, q_curr, q_goal, t_move): 
 
     traj = JointTrajectory()
