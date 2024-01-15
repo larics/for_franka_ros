@@ -194,9 +194,9 @@ def createSimpleTrajectory(joint_names, q_curr, q_goal, t_move):
     t_q_current.positions = q_curr
     t_q_goal.positions = q_goal
     t_q_goal.time_from_start.secs = t_move
-    traj.points = [t_q_current, t_q_goal]
+    traj.points.append(t_q_current)
+    traj.points.append(t_q_goal)
     
-    print(traj)
     return traj
 
 def calc_cartesian_midpoint(start_pose, end_pose):
