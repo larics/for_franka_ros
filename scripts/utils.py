@@ -14,6 +14,14 @@ def read_yaml_file(file_path):
         data = yaml.safe_load(file)
     return data
 
+def has_duplicates(lst):
+    seen = set()
+    for element in lst:
+        if tuple(element) in seen:
+            return True
+        seen.add(tuple(element))
+    return False
+
 def get_poses(poses_data): 
     
     poses = []
@@ -163,14 +171,14 @@ def forwardKinematics(q, plot=False):
 
     return poseFromMatrix(T0e)
 
-def createTrajectory(joint_names, q, dq, t):
+def createTrajectory(joint_names, q, dq, ddq, t):
 
     trajectoryMsg = JointTrajectory()
     trajectoryMsg.joint_names = joint_names
 
     dq = list(dq.T)
     i = 0
-    for k, (q, dq) in enumerate(zip(q, dq)):
+    for k, (q, dq, ddq) in enumerate(zip(q, dq, ddq)):
         try:
             i += t[k]
             t_ = rospy.Time.from_sec(i)
@@ -179,11 +187,32 @@ def createTrajectory(joint_names, q, dq, t):
         trajectoryPoint = JointTrajectoryPoint()
         trajectoryPoint.positions = q
         trajectoryPoint.velocities = dq
+        trajectoryPoint.accelerations = ddq
         trajectoryPoint.time_from_start.secs = t_.secs
         trajectoryPoint.time_from_start.nsecs = t_.nsecs
         trajectoryMsg.points.append(trajectoryPoint)
 
     return trajectoryMsg
+
+
+
+def createPredefinedTrajectory(joint_names, q, dq, ddq, t):
+
+    trajectoryMsg = JointTrajectory()
+    trajectoryMsg.joint_names = joint_names
+
+    for k, (q, dq, ddq) in enumerate(zip(q, dq, ddq)):
+        trajectoryPoint = JointTrajectoryPoint()
+        trajectoryPoint.positions = q
+        trajectoryPoint.velocities = dq
+        trajectoryPoint.accelerations = ddq
+        trajectoryPoint.time_from_start.secs = int(np.floor(t[k]))
+        trajectoryPoint.time_from_start.nsecs = int((t[k] - np.floor(t[k]))*10e9)
+        trajectoryMsg.points.append(trajectoryPoint)
+
+    return trajectoryMsg
+
+
 
 def createTaylorTrajectory(joint_names, q_list, dt): 
 
@@ -294,7 +323,7 @@ def createApmatrix(n, q, t):
     for i , t_ in enumerate(t):
         try:
             c = 3/(t[i+1] * t[i+2])
-            bracket = t[i+1]**2*(q[i+2] - q[i+1]) + t[i+2]**2*(q[i+1] - q[i])
+            bracket = t[i+1]**2*(q[i+3] - q[i+2]) + t[i+2]**2*(q[i+2] - q[i+1])
             Ap[:, i] = c * bracket
         except Exception as e:
             pass
@@ -307,8 +336,8 @@ def createAmatrix(n, q, t, Ap):
     # Matrix dimensions are n x (m - 2)
     # t dimensions are m-1
 
-    A1col = 6/t[0]**2 * (q[1] - q[0]) + 3/t[1] * (q[2] - q[1])
-    Alcol = 3/t[-1]**2 * (q[-1] - q[-2]) + 6/t[-1]**2*(q[-1] - q[-2])
+    A1col = 6/t[0]**2 * (q[1] - q[0]) + 3/t[1]**2 * (q[2] - q[1])
+    Alcol = 3/t[-2]**2 * (q[-2] - q[-3]) + 6/t[-1]**2*(q[-1] - q[-2])
 
     A = np.hstack((A1col.reshape(n, 1), Ap))
     A = np.hstack((A, Alcol.reshape(n, 1)))
@@ -325,24 +354,21 @@ def getBfirstSeg(q, dq, t):
 
     Q = np.array((q[0], q[1], dq[:, 0], dq[:, 1])).T # 6 x 4
 
-    # (6 x 4) x (4 x 5)
-    BfirstSeg = np.matmul(Q, T) # 6 x 5 dimensions
-
-    print("Bfirst: {}".format(BfirstSeg))
+    # (7 x 4) x (4 x 5)
+    BfirstSeg = np.matmul(Q, T) # 7 x 5 dimensions
 
     return BfirstSeg
 
 def getBanySeg(q, dq, t, k):
 
-    T = np.zeros((4, 5))
-    T[0, 0] = 1;            T[0, 3] = -3/t[k]**2;   T[0, 4] = 2/t[k]**3;
-    T[1, 3] = 3/t[k]**2;    T[1, 4] = -2/t[k]**3;
+    T = np.zeros((4, 4))
+    T[0, 0] = 1;            T[0, 2] = -3/t[k]**2;   T[0, 3] = 2/t[k]**3;
+    T[1, 2] = 3/t[k]**2;    T[1, 3] = -2/t[k]**3;
     T[2, 1] = 1;            T[2, 2] = -2/t[k];      T[2, 3] = 1/t[k]**2;
     T[3, 2] = -1/t[k];      T[3, 3] = 1/t[k]**2;
 
     # Fix indexing (First seg, k=1, q[k-1] = q[0], but has to be q[1], q[2])
-    k = k + 1
-    Q = np.array((q[k-1], q[k], dq[:, k-1], dq[:, k])).T
+    Q = np.array((q[k], q[k+1], dq[:, k], dq[:, k+1])).T
 
     BkSeg = np.matmul(Q, T)
 
@@ -351,11 +377,10 @@ def getBanySeg(q, dq, t, k):
 def getBLastSeg(q, dq, t):
 
     T = np.zeros((4, 5))
-    T[0, 0] = 1;            T[0, 2] = -6/t[-1]**2;  T[0, 3] = 8/t[-1]**2; T[0, 4] = -3/t[-1]**4;
+    T[0, 0] = 1;            T[0, 2] = -6/t[-1]**2;  T[0, 3] = 8/t[-1]**3; T[0, 4] = -3/t[-1]**4;
     T[1, 2] = 6/t[-1]**2;   T[1, 3] = -8/t[-1]**3;  T[1, 4] = 3/t[-1]**4;
     T[2, 1] = 1;            T[2, 2] = -3/t[-1];     T[2, 3] = 3/t[-1]**2; T[2, 4] = -1/t[-1]**3;
-
-    Q = np.array((q[-2], q[-1], dq[: ,-2], dq[:, -1])).T
+    Q = np.array((q[-2], q[-1], dq[: , -2], dq[:, -1])).T
 
     BlastSeg = np.matmul(Q, T)
 
@@ -363,31 +388,43 @@ def getBLastSeg(q, dq, t):
 
 def getMaxSpeedFirstSeg(B, t):
 
-    q_max = B[:, 1] + 2 * B[:, 2]*t[0] + 3*B[:, 3]*t[0]**2 + 4*B[:, 4]*t[0]**3
+    dq_max = B[:, 1] + 2*B[:, 2]*t[0] + 3*B[:, 3]*t[0]**2 + 4*B[:, 4]*t[0]**3 
 
-    return q_max
-
-def getMaxSpeedAnySeg(B, t, k):
-
-    q_max = B[:, 1] + 2*B[:, 2]*t[k] + 3*B[:, 3]*t[k]**2
-
-    return q_max
+    return dq_max
 
 def getMaxSpeedLastSeg(B, t):
 
-    q_max = B[:, 1] + 2*B[:, 2]*t[-1] + 3*B[:, 3]*t[-1]**2 + 4*B[:, 4]*t[-1]**3
+    dq_max = B[:, 1] + 2*B[:, 2]*t[-1] + 3*B[:, 3]*t[-1]**2 + 4*B[:, 4]*t[-1]**3 
 
-    return q_max
+    return dq_max
 
-def getMaxAcc(B, t):
+def getMaxSpeedAnySeg(B, t, k):
 
-    q_dot_max = 2*B[:, 2] + 6*B[:, 3]*t
+    dq_max = B[:, 1] + 2*B[:, 2]*t[k] + 3*B[:, 3]*t[k]**2
 
-    return q_dot_max
+    return dq_max
+
+def getMaxAccFirstSeg(B, t): 
+    
+    ddq_max = 2* B[:, 2] + 6*B[:, 3]*t[0] + 12*B[:, 4]*t[0]**2
+    
+    return ddq_max
+
+def getMaxAccLastSeg(B, t): 
+    
+    ddq_max = 2*B[:, 2] + 6*B[:, 3]*t[-1] + 12*B[:, 4]*t[-1]**2
+    
+    return ddq_max
+
+def getMaxAccAnySeg(B, t, k): 
+    
+    ddq_max = 2*B[:, 2] + 6*B[:, 3]*t[k] 
+    
+    return ddq_max
 
 def get_dq_max(q, dq, t):
 
-    Bk = []; dqmax = []
+    Bk = []; dqmax = []; 
     for k, t_ in enumerate(t):
         if k == 0:
             Bfirst = getBfirstSeg(q, dq, t)
@@ -402,12 +439,44 @@ def get_dq_max(q, dq, t):
         if k == len(t) - 1 :
             Blast = getBLastSeg(q, dq, t)
             dqmax_ = getMaxSpeedLastSeg(Blast, t)
+            print("t is : {}".format(t))
+            print("dqmax_ last seg is: {}".format(dqmax_))
             dqmax.append(dqmax_)
 
-    dqmax = np.asarray(dqmax).T                     # Returns indices (np.argmax(dq_max, axis=1))
-    dqmax = np.amax(dqmax, axis=1)                  # Returns values axis = 0 -> column-wise, axis=1, row-wise
-                                                    # print(np.amax(dq_max, axis=1))
+    print("dqmax: {}".format(dqmax))
+    dqmax = np.asarray(dqmax).T; # Returns indices (np.argmax(dq_max, axis=1))
+    dqmax = np.amax(dqmax, axis=1);  # Returns values axis = 0 -> column-wise, axis=1, row-wise
+    
     return dqmax
+
+def get_ddq_max(q, dq, t): 
+
+    Bk = []; ddqmax = []
+    for k, t_ in enumerate(t):
+        if k == 0:
+            Bfirst = getBfirstSeg(q, dq, t)
+            ddqmax_ = getMaxAccFirstSeg(Bfirst, t)
+            ddqmax.append(ddqmax_)
+        # Calculate stuff for all segments without first > 0 and last len(t) - 1
+        if k > 0 and k < len(t) - 1:
+            Bk_ = getBanySeg(q, dq, t, k)
+            Bk.append(Bk_)
+            ddqmax_ = getMaxAccAnySeg(Bk_, t, k)
+            ddqmax.append(ddqmax_)
+        if k == len(t) - 1 :
+            Blast = getBLastSeg(q, dq, t)
+            ddqmax_ = getMaxAccLastSeg(Blast, t)
+            ddqmax.append(ddqmax_)
+
+    return ddqmax
+
+def read_file(file_path):
+    a_ = []
+    with open(file_path, 'r') as file:
+        for row in file:
+            a = [float(i) for i in row.split(",")]
+            a_.append(a)
+    return a_
 
 # Plt utils
 def draw(points_gazebo, points_fk, cart_points, eps):

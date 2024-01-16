@@ -29,7 +29,7 @@ class OrLab3():
 
         # Extract poses
         rp = RosPack()        
-        yml_ = os.path.join(rp.get_path("for_franka_ros"), "config/goal_poses.yaml")
+        yml_ = os.path.join(rp.get_path("for_franka_ros"), "config/new_poses.yaml")
         poses_data = read_yaml_file(yml_)
         self.poses = get_poses(poses_data)
         self.pose_A = self.poses[0]
@@ -39,11 +39,13 @@ class OrLab3():
         self.pose_E = self.poses[4]
 
         # Init pose
-        self.q_init = [-0.488, -0.641, 0.553, -2.17, -0.525, 3.19, 0.05]
+        self.q_init = [-0.53070, -0.6574, 0.6201, -2.1528, -0.51372, 3.1724, 0.091237]
+
+        #self.q_init = [-2.052, -1.45, 1.03, -1.78, 1.31, 1.08, 0.0]
         self.real_robot = True
         self.taylor_points = []
         self.ee_points = []; self.ee_points_fk = []
-        self.joint_max = 50
+        self.joint_max = 10
         self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6",
                                 "panda_joint7"] 
 
@@ -53,7 +55,6 @@ class OrLab3():
         else: 
             self.p_state_name = "/control_arm_node/tool/current_pose"
             self.q_state_name = "/joint_states"
-            
 
         # Initialize subscribers and publishers
         self._init_publishers()
@@ -61,6 +62,14 @@ class OrLab3():
         self._init_srv_clients()
         self.p_reciv = False
         self.q_reciv = False
+
+        # Load CSV 
+        # 11 works!
+        self.positions = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Q_17.txt")
+        self.velocities = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qd_17.txt")
+        self.acceleration = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qdd_17.txt")
+
+        print("Position duplicates: {}".format(has_duplicates(self.positions)))
 
     def _init_subscribers(self): 
         # P and Q subscribers
@@ -129,7 +138,7 @@ class OrLab3():
         # calculate w_M
         p_wM = calc_cartesian_midpoint(arrayToPose(start_pose), arrayToPose(end_pose))
         n = norm(p_wm, p_wM)
-        if (n < epsilon):
+        if (n < epsilon).all():
             rospy.loginfo("Taylor interpolation finished")
             # It can be added nicer for sure! 
             self.taylor_points.append([np.round(s, 7) for s in start_pose]); 
@@ -157,7 +166,7 @@ class OrLab3():
             rospy.logdebug("Inverse kinematics q is: {}".format(q))
             # Time parametrization
             t = get_time_parametrization(q)
-            t = [ti for ti in t]
+            t = [5 * ti for ti in t]
             print("Initial parametrization is: {}".format(t))
         n = len(self.joint_names)
         # Ap matrix
@@ -170,19 +179,19 @@ class OrLab3():
         M = createMmatrix(Mp, t)
         print("M [{}] is: {}".format(M.shape, M))
         dq = np.matmul(A, np.linalg.inv(M))
-        #print("dq [{}] is: {}".format(dq.shape, dq))
+        print("dq [{}] is: {}".format(dq.shape, dq))
         zeros = np.zeros((n, 1)); dq = np.hstack((zeros, dq)); dq = np.hstack((dq, zeros))
         dq_max = get_dq_max(q, dq, t)
+        ddq = get_ddq_max(q, dq, t)
+        print("ddq is: {}".format(ddq))
         #print("q len is: {}".format(len(q)))
-        optimize_time = True
+        optimize_time = False
         if optimize_time: 
             dq_max = get_dq_max(q, dq, t)
-            exit()
             #   print("dq_max is: {}".format(dq_max_val))
             ddq = get_ddq_max(q, dq, t)
             ddq.insert(0, np.array([0, 0, 0, 0, 0, 0, 0]))
             ddq.append(np.array([0, 0, 0, 0, 0, 0, 0]))
-            print("ddq: {}".format(ddq))
             dq_max_val = np.max(dq_max) 
             scaling_factor = dq_max_val/self.joint_max
             # Scale to accomodate limits
@@ -195,20 +204,24 @@ class OrLab3():
                 t = sk * t
                 trajectory = createTrajectory(self.joint_names, q, dq, ddq, t)
                 rospy.loginfo("Publishing trajectory!")
-                exit()
                 self.q_cmd_pub.publish(trajectory)
                 sum_t = sum(t)
                 rospy.loginfo("Execution duration is : {}".format(sum_t))
                 return sum_t
         else: 
-            trajectory = createTrajectory(self.joint_names, q, dq, t_)
+            trajectory = createTrajectory(self.joint_names, q, dq, ddq, t)
             self.q_cmd_pub.publish(trajectory)
             sum_t = sum(t)
             return sum_t
     
     def go_to_init_pose(self): 
         rospy.loginfo("Going to init pose")
-        trajectory = createSimpleTrajectory(self.joint_names, self.q_curr.position, self.q_init, 5)
+        trajectory = createSimpleTrajectory(self.joint_names, self.q_init, self.q_init, 5)
+        self.q_cmd_pub.publish(trajectory)
+
+    def go_to_q(self, q): 
+        rospy.loginfo("Going to init pose")
+        trajectory = createSimpleTrajectory(self.joint_names, self.q_curr, q, 5)
         self.q_cmd_pub.publish(trajectory)
 
     def go_to_points(self, poses, sleep_time, t_move): 
@@ -225,7 +238,7 @@ class OrLab3():
         points = [self.get_ik(arrayToPose(p)) for p in points]
         duration, trajectory = createTaylorTrajectory(self.joint_names, points, dt=2)
         self.q_cmd_pub.publish(trajectory)
-        rospy.sleep(duration)
+        rospy.sleep(duration*1.5)
         return duration, trajectory
     
     def go_to_pose_ho_cook(self, goal_pose, eps):
@@ -241,26 +254,47 @@ class OrLab3():
         t = exec_duration + 2
         #draw(self.ee_points, self.ee_points_fk, points, eps)
         return t, points
-    
+
+    def createPredefinedTrajectory(self, joint_names, q, dq, ddq, t):
+
+        trajectoryMsg = JointTrajectory()
+        trajectoryMsg.joint_names = joint_names
+
+        for k, (q, dq, ddq) in enumerate(zip(q, dq, ddq)):
+            trajectoryPoint = JointTrajectoryPoint()
+            trajectoryPoint.positions = q
+            trajectoryPoint.velocities = dq
+            trajectoryPoint.accelerations = ddq
+            trajectoryPoint.time_from_start = rospy.Time.from_sec(t[k])
+            trajectoryMsg.points.append(trajectoryPoint)
+
+        return trajectoryMsg
         
     def run(self):
 
         rospy.sleep(5)
-        eps = [0.03, 0.02, 0.01, 0.005, 0.003]
+        eps = [0.01, 0.005]
         while not rospy.is_shutdown():
             if self.p_reciv and self.q_reciv:
                 # Point to point movement
-                #self.go_to_init_pose() 
-                rospy.sleep(5)
                 #self.go_to_points(self.poses, 5, 5)
                 for e_ in eps: 
-                    self.go_to_init_pose()
-                    rospy.sleep(5)
-                    #t, points = self.go_to_pose_taylor(self.poses[2], e_)
-                    #self.reset_taylor()
-                    t, points = self.go_to_pose_ho_cook(self.poses[4], e_)
-                    rospy.sleep(t)
+                    point_to_point=True; hocook=True; taylor=False
+                    if point_to_point: 
+                        self.go_to_points(self.poses, 5, 5)
+                    if taylor: 
+                        t = self.go_to_pose_taylor(self.pose_E, e_)
+                    if hocook:
+                        self.go_to_init_pose()
+                        rospy.sleep(5)
+                        print("Publishing trajectory")
+                        t = [i*0.02 for i in range(0, len(self.positions))]
+                        print(self.positions[0])
+                        trajectory = self.createPredefinedTrajectory(self.joint_names, self.positions, self.velocities, self.acceleration, t)
+                        self.q_cmd_pub.publish(trajectory)
+                        rospy.sleep(t[-1] + 5)                    
                     self.reset_taylor()
+                    exit()
             else: 
                 rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))
             # Ho cook movement 
