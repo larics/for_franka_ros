@@ -65,9 +65,9 @@ class OrLab3():
 
         # Load CSV 
         # 11 works!
-        self.positions = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Q_17.txt")
-        self.velocities = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qd_17.txt")
-        self.acceleration = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qdd_17.txt")
+        self.positions = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Q_18.txt")
+        self.velocities = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qd_18.txt")
+        self.acceleration = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qdd_18.txt")
 
         print("Position duplicates: {}".format(has_duplicates(self.positions)))
 
@@ -216,12 +216,13 @@ class OrLab3():
     
     def go_to_init_pose(self): 
         rospy.loginfo("Going to init pose")
-        trajectory = createSimpleTrajectory(self.joint_names, self.q_init, self.q_init, 5)
+        trajectory = createSimpleTrajectory(self.joint_names, self.q_curr, self.q_init, 5)
         self.q_cmd_pub.publish(trajectory)
 
     def go_to_q(self, q): 
-        rospy.loginfo("Going to init pose")
+        rospy.loginfo("Going to pose: {}".format(q))
         trajectory = createSimpleTrajectory(self.joint_names, self.q_curr, q, 5)
+        print(trajectory)
         self.q_cmd_pub.publish(trajectory)
 
     def go_to_points(self, poses, sleep_time, t_move): 
@@ -285,11 +286,11 @@ class OrLab3():
                     if taylor: 
                         t = self.go_to_pose_taylor(self.pose_E, e_)
                     if hocook:
+                        self.q_init = [q - 0.001 for q in self.positions[0]]
                         self.go_to_init_pose()
                         rospy.sleep(5)
-                        print("Publishing trajectory")
+                        rospy.loginfo("Publishing HoCook trajectory")
                         t = [i*0.02 for i in range(0, len(self.positions))]
-                        print(self.positions[0])
                         trajectory = self.createPredefinedTrajectory(self.joint_names, self.positions, self.velocities, self.acceleration, t)
                         self.q_cmd_pub.publish(trajectory)
                         rospy.sleep(t[-1] + 5)                    
