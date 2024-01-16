@@ -17,9 +17,9 @@ def read_yaml_file(file_path):
 def has_duplicates(lst):
     seen = set()
     for element in lst:
-        if tuple(element) in seen:
+        if element in seen:
             return True
-        seen.add(tuple(element))
+        seen.add(element)
     return False
 
 def get_poses(poses_data): 
@@ -228,16 +228,19 @@ def createTaylorTrajectory(joint_names, q_list, dt):
     
     return duration, trajectoryMsg
 
-def createSimpleTrajectory(joint_names, q_curr, q_goal, t_move): 
+def createSimpleTrajectory(joint_names, q_curr, q_goal, t_move=None): 
 
     traj = JointTrajectory()
     traj.joint_names = joint_names
-    t_q_current = JointTrajectoryPoint()
+    t_q_curr = JointTrajectoryPoint()
     t_q_goal = JointTrajectoryPoint()
-    t_q_current.positions = q_curr
+    t_q_curr.positions = q_curr
     t_q_goal.positions = q_goal
-    t_q_goal.time_from_start.secs = t_move
-    traj.points.append(t_q_current)
+    if t_move: 
+        t_q_goal.time_from_start.secs = t_move
+    else: 
+        t_q_goal.time_from_start.secs = 5
+    traj.points.append(t_q_curr)
     traj.points.append(t_q_goal)
     
     return traj

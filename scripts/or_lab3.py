@@ -40,7 +40,6 @@ class OrLab3():
 
         # Init pose
         self.q_init = [-0.53070, -0.6574, 0.6201, -2.1528, -0.51372, 3.1724, 0.091237]
-
         #self.q_init = [-2.052, -1.45, 1.03, -1.78, 1.31, 1.08, 0.0]
         self.real_robot = True
         self.taylor_points = []
@@ -65,11 +64,11 @@ class OrLab3():
 
         # Load CSV 
         # 11 works!
-        self.positions = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Q_18.txt")
-        self.velocities = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qd_18.txt")
-        self.acceleration = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qdd_18.txt")
+        self.positions = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Q_23.txt")
+        self.velocities = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qd_23.txt")
+        self.acceleration = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qdd_23.txt")
 
-        print("Position duplicates: {}".format(has_duplicates(self.positions)))
+        #print("Position duplicates: {}".format(has_duplicates(self.positions)))
 
     def _init_subscribers(self): 
         # P and Q subscribers
@@ -184,7 +183,6 @@ class OrLab3():
         dq_max = get_dq_max(q, dq, t)
         ddq = get_ddq_max(q, dq, t)
         print("ddq is: {}".format(ddq))
-        #print("q len is: {}".format(len(q)))
         optimize_time = False
         if optimize_time: 
             dq_max = get_dq_max(q, dq, t)
@@ -219,11 +217,11 @@ class OrLab3():
         trajectory = createSimpleTrajectory(self.joint_names, self.q_curr, self.q_init, 5)
         self.q_cmd_pub.publish(trajectory)
 
-    def go_to_q(self, q): 
+    def go_to_q(self, q, t): 
         rospy.loginfo("Going to pose: {}".format(q))
-        trajectory = createSimpleTrajectory(self.joint_names, self.q_curr, q, 5)
-        print(trajectory)
+        trajectory = createSimpleTrajectory(self.joint_names, self.q_curr.position, q, t)
         self.q_cmd_pub.publish(trajectory)
+        rospy.sleep(5)
 
     def go_to_points(self, poses, sleep_time, t_move): 
         #TODO: Use methods from the run() in or_lab1.py to enable 
@@ -276,28 +274,29 @@ class OrLab3():
         rospy.sleep(5)
         eps = [0.01, 0.005]
         while not rospy.is_shutdown():
-            if self.p_reciv and self.q_reciv:
-                # Point to point movement
-                #self.go_to_points(self.poses, 5, 5)
-                for e_ in eps: 
-                    point_to_point=True; hocook=True; taylor=False
-                    if point_to_point: 
-                        self.go_to_points(self.poses, 5, 5)
-                    if taylor: 
-                        t = self.go_to_pose_taylor(self.pose_E, e_)
-                    if hocook:
-                        self.q_init = [q - 0.001 for q in self.positions[0]]
-                        self.go_to_init_pose()
-                        rospy.sleep(5)
-                        rospy.loginfo("Publishing HoCook trajectory")
-                        t = [i*0.02 for i in range(0, len(self.positions))]
-                        trajectory = self.createPredefinedTrajectory(self.joint_names, self.positions, self.velocities, self.acceleration, t)
-                        self.q_cmd_pub.publish(trajectory)
-                        rospy.sleep(t[-1] + 5)                    
-                    self.reset_taylor()
-                    exit()
-            else: 
-                rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))
+            try:
+                if self.p_reciv and self.q_reciv:
+                    # Point to point movement
+                    #self.go_to_points(self.poses, 5, 5)
+                    for e_ in eps: 
+                        point_to_point=False; hocook=True; taylor=False
+                        if point_to_point: 
+                            self.go_to_points(self.poses, 5, 5)
+                        if taylor: 
+                            t = self.go_to_pose_taylor(self.pose_E, e_)
+                            self.reset_taylor()
+                        if hocook:
+                            q = [q_ - 0.001 for q_ in self.positions[0]]
+                            self.go_to_q(q, 5)
+                            rospy.sleep(5)
+                            t = [i*0.02 for i in range(0, len(self.positions))]
+                            trajectory = self.createPredefinedTrajectory(self.joint_names, self.positions, self.velocities, self.acceleration, t)
+                            self.q_cmd_pub.publish(trajectory)
+                            rospy.sleep(t[-1] + 5)                    
+                else: 
+                    rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))
+            except rospy.ROSInterruptException: 
+                exit()
             # Ho cook movement 
 
 
