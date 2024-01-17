@@ -78,6 +78,10 @@ class OrLab3():
     def _init_publishers(self): 
         # Trajectory publisher
         self.q_cmd_pub = rospy.Publisher("/position_joint_trajectory_controller/command", JointTrajectory, queue_size=1)
+        # Publishers for plotting 
+        self.q_p2p_pub = rospy.Publisher("/p2p/joint_states", JointState, queue_size=1)
+        self.q_hocook_pub = rospy.Publisher("/hocook/joint_states", JointState, queue_size=1)
+        self.q_taylor_pub = rospy.Publisher("/taylor/joint_states", JointState, queue_size=1)
 
     def _init_srv_clients(self):
         # Service for fetching IK
@@ -105,6 +109,13 @@ class OrLab3():
         self.q_curr.position = positions
         self.q_curr.velocity = data.velocity
         self.q_curr.effort = data.effort
+        # Set different republishing topics for bagging
+        if self.p2p_exec: 
+            self.q_p2p_pub.publish(self.q_curr)
+        if self.hocok_exec: 
+            self.q_hocook_pub.publish(self.q_curr)
+        if self.taylor_exec: 
+            self.q_taylor_pub.publish(self.q_curr)
 
     def get_ik(self, wanted_pose):
 
@@ -281,18 +292,24 @@ class OrLab3():
                     for e_ in eps: 
                         point_to_point=False; hocook=True; taylor=False
                         if point_to_point: 
+                            self.p2p_exec = True
                             self.go_to_points(self.poses, 5, 5)
+                            self.p2p_exec = False
                         if taylor: 
+                            self.taylor_exec = True
                             t = self.go_to_pose_taylor(self.pose_E, e_)
                             self.reset_taylor()
+                            self.taylor_exec = False
                         if hocook:
+                            self.hocook_exec = True
                             q = [q_ - 0.001 for q_ in self.positions[0]]
                             self.go_to_q(q, 5)
                             rospy.sleep(5)
                             t = [i*0.02 for i in range(0, len(self.positions))]
                             trajectory = self.createPredefinedTrajectory(self.joint_names, self.positions, self.velocities, self.acceleration, t)
                             self.q_cmd_pub.publish(trajectory)
-                            rospy.sleep(t[-1] + 5)                    
+                            rospy.sleep(t[-1] + 5)          
+                            self.hocok_exec = False          
                 else: 
                     rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))
             except rospy.ROSInterruptException: 
