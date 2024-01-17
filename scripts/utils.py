@@ -95,6 +95,7 @@ def arrayToPose(poseArray):
     return pose
 
 def createGoalPose(x, y, z, qx, qy, qz, qw):
+
     wanted_pose = Pose()
     wanted_pose.position.x = x
     wanted_pose.position.y = y
@@ -106,6 +107,7 @@ def createGoalPose(x, y, z, qx, qy, qz, qw):
     return wanted_pose
 
 def normalize_q(pose):
+
     qx = pose.orientation.x
     qy = pose.orientation.y 
     qz = pose.orientation.z 
@@ -120,6 +122,7 @@ def normalize_q(pose):
 
 # FK utils
 def TfromDH(theta, d, alpha, a):
+    
     T = np.eye(4)
     T[0,0] = np.cos(theta)
     T[0,1] = -np.sin(theta)*np.cos(alpha)

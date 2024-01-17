@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 
 import rospy
-from geometry_msgs.msg import PoseStamped, Pose, Point
+import copy
+import math
 import numpy as np
+
+from geometry_msgs.msg import PoseStamped, Pose, Point
 from tf.transformations import quaternion_from_matrix
 from tf import TransformListener, LookupException, ConnectivityException, ExtrapolationException
 from sensor_msgs.msg import JointState
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import copy
-import math
 from utils import *
 
 def getTfromEuler(t, euler_vector):

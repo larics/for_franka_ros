@@ -76,5 +76,6 @@ catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 - [x] Launch joint_trajectory_controller
 - [x] Create `or_lab3.py`
 - [x] Debug init HoCook 
+- [ ] Add [class inheritance](https://realpython.com/python-super/) and develop one Lab class that will be inherited by each instance of the lab
 - [ ] Add analytic IK [Choose closest solution]
 - [ ] Test joint pose commands 

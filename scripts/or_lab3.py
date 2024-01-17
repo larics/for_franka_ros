@@ -68,6 +68,8 @@ class OrLab3():
         self.velocities = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qd_23.txt")
         self.acceleration = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qdd_23.txt")
 
+        self.p2p_exec = False; self.hocook_exec = False; self.taylor_exec = False; 
+
         #print("Position duplicates: {}".format(has_duplicates(self.positions)))
 
     def _init_subscribers(self): 
@@ -112,7 +114,7 @@ class OrLab3():
         # Set different republishing topics for bagging
         if self.p2p_exec: 
             self.q_p2p_pub.publish(self.q_curr)
-        if self.hocok_exec: 
+        if self.hocook_exec: 
             self.q_hocook_pub.publish(self.q_curr)
         if self.taylor_exec: 
             self.q_taylor_pub.publish(self.q_curr)
@@ -252,7 +254,6 @@ class OrLab3():
         return duration, trajectory
     
     def go_to_pose_ho_cook(self, goal_pose, eps):
-
         # Reset saved ee_points and fk points
         self.ee_points = []; self.ee_points_fk = []
         start_time = rospy.Time.now().to_sec()
@@ -290,7 +291,7 @@ class OrLab3():
                     # Point to point movement
                     #self.go_to_points(self.poses, 5, 5)
                     for e_ in eps: 
-                        point_to_point=False; hocook=True; taylor=False
+                        point_to_point=True; hocook=True; taylor=False
                         if point_to_point: 
                             self.p2p_exec = True
                             self.go_to_points(self.poses, 5, 5)
@@ -309,13 +310,11 @@ class OrLab3():
                             trajectory = self.createPredefinedTrajectory(self.joint_names, self.positions, self.velocities, self.acceleration, t)
                             self.q_cmd_pub.publish(trajectory)
                             rospy.sleep(t[-1] + 5)          
-                            self.hocok_exec = False          
+                            self.hocook_exec = False          
                 else: 
                     rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))
             except rospy.ROSInterruptException: 
                 exit()
-            # Ho cook movement 
-
 
 
 if __name__ == "__main__": 
