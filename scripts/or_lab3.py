@@ -47,6 +47,7 @@ class OrLab3():
         self.joint_max = 10
         self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6",
                                 "panda_joint7"] 
+        self.p2p_exec = False; self.hocook_exec = False; self.taylor_exec = False; 
 
         if self.real_robot: 
             self.p_state_name = "/control_arm_node/tool/current_pose"
@@ -68,7 +69,6 @@ class OrLab3():
         self.velocities = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qd_23.txt")
         self.acceleration = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qdd_23.txt")
 
-        self.p2p_exec = False; self.hocook_exec = False; self.taylor_exec = False; 
 
         #print("Position duplicates: {}".format(has_duplicates(self.positions)))
 
@@ -310,7 +310,8 @@ class OrLab3():
                             trajectory = self.createPredefinedTrajectory(self.joint_names, self.positions, self.velocities, self.acceleration, t)
                             self.q_cmd_pub.publish(trajectory)
                             rospy.sleep(t[-1] + 5)          
-                            self.hocook_exec = False          
+                            self.hocook_exec = False    
+                        exit()     
                 else: 
                     rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))
             except rospy.ROSInterruptException: 
