@@ -22,13 +22,17 @@ from for_franka_ros.srv import getIk
 class OrLab(): 
 
     def __init__(self, node_name, frequency): 
-        rospy.init_node("orlab1", anonymous=True, log_level=rospy.INFO)
+        rospy.init_node(f"{node_name}", anonymous=True, log_level=rospy.INFO)
+        self.frequency = frequency
         pass
     
     def _init_subscribers(self):
+
         pass
 
     def _init_publishers(self): 
+        self.p_pub = rospy.Publisher("/control_arm_node/arm/command/pose", Pose, queue_size=10, latch=True)
+        self.q_pub = rospy.Publisher("")
         pass
 
     def _init_services(self): 
@@ -41,7 +45,8 @@ class OrLab():
         pass
 
     def run(self): 
-        pass
+        while not rospy.is_shutdown(): 
+            rospy.sleep(rospy.Duration(1/int(self.frequency)))
 
 if __name__=="__main__": 
     pass
