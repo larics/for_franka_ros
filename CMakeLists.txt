@@ -1,3 +1,4 @@
+## Nice GitLab tutorial about CMake: https://cliutils.gitlab.io/modern-cmake/chapters/basics.html
 cmake_minimum_required(VERSION 3.0.2)
 project(for_franka_ros)
 
@@ -26,6 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Eigen3 REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 ## Must be called before catkin_package
 add_service_files(
@@ -51,7 +53,14 @@ catkin_package(
     moveit_msgs
   DEPENDS
     Eigen3
+    yaml-cpp
 )
+
+##########
+## YAML ##
+##########
+
+
 
 ###########
 ## Build ##
@@ -63,13 +72,12 @@ include_directories(
  include ${catkin_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR}
 )
 
-
-
 ## Declare a C++ library
 set(PROJECT_LIB_FILES 
     src/control_arm.cpp
 )
 
+## TODO: Check diff between executable and lib 
 add_library(
         ${PROJECT_NAME}_lib
         ${PROJECT_LIB_FILES}
@@ -85,4 +93,5 @@ target_link_libraries(
     ${PROJECT_NAME}_lib
     ${EIGEN3_LIBRARIES}
     ${catkin_LIBRARIES}
+    yaml-cpp
 )
