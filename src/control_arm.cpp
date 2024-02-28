@@ -12,6 +12,9 @@ ControlArm::ControlArm(ros::NodeHandle nh) : nH(nh) {
   // initialize.)
   usleep(sleepMs_);
 
+  // Load group and topic names
+  loadConfig(); 
+
   // Initialize robot ctl class
   initRobot();
 
@@ -26,39 +29,9 @@ void ControlArm::initRobot() {
 
   ROS_INFO("[ControlArm] Started node initialization.");
 
-  // Load robot config
-  YAML::Node config = YAML::LoadFile("/home/developer/catkin_ws/src/for_franka_ros/config/robot_config.yaml");
-
-  // Set move group name and ee link
-  GROUP_NAME = config["robot"]["arm_name"].as<std::string>(); //"panda_manipulator"; 
-  EE_LINK_NAME = config["robot"]["ee_link_name"].as<std::string>(); //"panda_hand_tcp"; 
-
-  // Topic names
-  dispTrajTopicName     = config["topic"]["pub"]["display_trajectory"]["name"].as<std::string>(); 
-  currPoseTopicName     = config["topic"]["pub"]["current_pose"]["name"].as<std::string>(); 
-  cmdPoseTopicName      = config["topic"]["sub"]["cmd_pose"]["name"].as<std::string>(); 
-  cmdDeltaPoseTopicName = config["topic"]["sub"]["cmd_delta_pose"]["name"].as<std::string>(); 
-
-  // Q Sizes
-  dispTrajQSize     = config["topic"]["pub"]["display_trajectory"]["queue"].as<int>(); 
-  currPoseQSize     = config["topic"]["pub"]["current_pose"]["queue"].as<int>(); 
-  cmdPoseQSize      = config["topic"]["sub"]["cmd_pose"]["queue"].as<int>(); 
-  cmdDeltaPoseQSize = config["topic"]["sub"]["cmd_delta_pose"]["queue"].as<int>(); 
-  ROS_INFO_NAMED("arm_ctl", "setted queue sizes!");
-
-  // Srv names 
-  disableCollisionSrvName           = config["srv"]["disable_collision"]["name"].as<std::string>(); 
-  addCollisionObjectSrvName         = config["srv"]["add_collision"]["name"].as<std::string>(); 
-  startPositionCtlSrvName           = config["srv"]["start_position_ctl"]["name"].as<std::string>(); 
-  startJointTrajCtlSrvName          = config["srv"]["start_joint_traj_ctl"]["name"].as<std::string>(); 
-  startJointGroupPosCtlSrvName      = config["srv"]["start_joint_group_pos_ctl"]["name"].as<std::string>(); 
-  startJointGroupVelCtlSrvName      = config["srv"]["start_joint_group_vel_ctl"]["name"].as<std::string>(); 
-  ROS_INFO_NAMED("arm_ctl", "named services"); 
-
   // Set move group and planning scene
   moveGroupInitialized_     = setMoveGroup();
   planningSceneInitialized_ = setPlanningScene();
-
 
   ROS_INFO_NAMED("arm_ctl", "Initializing subscribers/publishers...");
   dispTrajPub = nH.advertise<moveit_msgs::DisplayTrajectory>(dispTrajTopicName, dispTrajQSize);
@@ -89,6 +62,38 @@ void ControlArm::initRobot() {
   applyPlanningSceneSrvCli = nHns.serviceClient<moveit_msgs::ApplyPlanningScene>("apply_planning_scene");
   applyPlanningSceneSrvCli.waitForExistence();
   ROS_INFO_NAMED("arm_ctl", "Initialized service clients. ");
+}
+
+void ControlArm::loadConfig() {
+
+  YAML::Node config = YAML::LoadFile("/home/developer/catkin_ws/src/for_franka_ros/config/robot_config.yaml");
+
+  // Set move group name and ee link
+  GROUP_NAME = config["robot"]["arm_name"].as<std::string>(); //"panda_manipulator"; 
+  EE_LINK_NAME = config["robot"]["ee_link_name"].as<std::string>(); //"panda_hand_tcp"; 
+
+  // Topic names
+  dispTrajTopicName     = config["topic"]["pub"]["display_trajectory"]["name"].as<std::string>(); 
+  currPoseTopicName     = config["topic"]["pub"]["current_pose"]["name"].as<std::string>(); 
+  cmdPoseTopicName      = config["topic"]["sub"]["cmd_pose"]["name"].as<std::string>(); 
+  cmdDeltaPoseTopicName = config["topic"]["sub"]["cmd_delta_pose"]["name"].as<std::string>(); 
+
+  // Q Sizes
+  dispTrajQSize     = config["topic"]["pub"]["display_trajectory"]["queue"].as<int>(); 
+  currPoseQSize     = config["topic"]["pub"]["current_pose"]["queue"].as<int>(); 
+  cmdPoseQSize      = config["topic"]["sub"]["cmd_pose"]["queue"].as<int>(); 
+  cmdDeltaPoseQSize = config["topic"]["sub"]["cmd_delta_pose"]["queue"].as<int>(); 
+  ROS_INFO_NAMED("arm_ctl", "setted queue sizes!");
+
+  // Srv names 
+  disableCollisionSrvName           = config["srv"]["disable_collision"]["name"].as<std::string>(); 
+  addCollisionObjectSrvName         = config["srv"]["add_collision"]["name"].as<std::string>(); 
+  startPositionCtlSrvName           = config["srv"]["start_position_ctl"]["name"].as<std::string>(); 
+  startJointTrajCtlSrvName          = config["srv"]["start_joint_traj_ctl"]["name"].as<std::string>(); 
+  startJointGroupPosCtlSrvName      = config["srv"]["start_joint_group_pos_ctl"]["name"].as<std::string>(); 
+  startJointGroupVelCtlSrvName      = config["srv"]["start_joint_group_vel_ctl"]["name"].as<std::string>(); 
+  ROS_INFO_NAMED("arm_ctl", "named services"); 
+
 }
 
 bool ControlArm::setMoveGroup() {

@@ -69,8 +69,8 @@ catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 - [x] Add instructions for building/using Dockerfile 
 - [x] Debug init HoCook 
 - [ ] [py] Add [class inheritance](https://realpython.com/python-super/) and develop one Lab class that will be inherited by each instance of the lab
-- [ ] [cpp] Refactor 
-- [ ] [cpp] Add yaml topic name reading 
+- [x] [cpp] Refactor 
+- [x] [cpp] Add yaml topic name reading 
 - [ ] [cpp] Add servo
 - [ ] [cpp] Add analytic IK [choose closest solution]
 - [ ] [cpp] Test joint pose commands 
