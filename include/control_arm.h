@@ -95,8 +95,6 @@ public:
   // Link to issue that explains it:
   // https://stackoverflow.com/questions/18944451/how-to-make-a-derived-class-access-the-private-member-data
 private:
-  // Reads and verifies ROS parameters
-  bool readParameters();
 
   // Initialization method
   void initRobot();
@@ -108,6 +106,10 @@ private:
   // transformListener
   tf::TransformListener listener;
   tf::TransformBroadcaster broadcaster;
+
+  // Basic robot setup
+  std::string GROUP_NAME; 
+  std::string EE_LINK_NAME; 
 
   // Topic names
   std::string dispTrajTopicName; 
@@ -121,8 +123,8 @@ private:
   std::string addCollisionObjectSrvName;
   std::string startPositionCtlSrvName;
   std::string startJointTrajCtlSrvName;
-  std::string startJointGroupPositionCtlSrvName;
-  std::string startJointGroupVelocityCtlSrvName;
+  std::string startJointGroupPosCtlSrvName;
+  std::string startJointGroupVelCtlSrvName;
   std::string getIkSrvName; 
 
   // Topic queue sizes
@@ -214,9 +216,7 @@ private:
   // TODO: Move this to utils.cpp
   float round(float var);
 
-  // Have to rebuild each time when this is changes, TODO: Add some config for that
-  static constexpr auto GROUP_NAME = "panda_manipulator"; 
-  static constexpr auto EE_LINK_NAME = "panda_hand_tcp"; 
+  
 
 };
 

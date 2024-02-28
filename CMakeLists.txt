@@ -27,6 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Eigen3 REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 ## Must be called before catkin_package
 add_service_files(
@@ -52,25 +53,14 @@ catkin_package(
     moveit_msgs
   DEPENDS
     Eigen3
+    yaml-cpp
 )
 
 ##########
 ## YAML ##
 ##########
 
-include(FetchContent)
-FetchContent_Declare(
-        yaml-cpp
-        GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git 
-        GIT_TAG yaml-cpp-0.7.0
-)
-FetchContent_GetProperties(yaml-cpp)
 
-if(NOT yaml-cpp_POPULATED)
-  message(STATUS "Fetching yaml-cpp...")
-  FetchContent_Populate(yaml-cpp)
-  add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR})
-endif()
 
 ###########
 ## Build ##
@@ -103,5 +93,5 @@ target_link_libraries(
     ${PROJECT_NAME}_lib
     ${EIGEN3_LIBRARIES}
     ${catkin_LIBRARIES}
-    yaml-cpp::yaml-cpp 
+    yaml-cpp
 )
