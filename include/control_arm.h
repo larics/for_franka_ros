@@ -97,6 +97,7 @@ public:
 private:
 
   // Initialization method
+  void loadConfig(); 
   void initRobot();
 
   // ROS node handle

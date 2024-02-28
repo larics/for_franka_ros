@@ -1,6 +1,7 @@
 robot: 
   arm_name: panda_manipulator
   ee_link_name: panda_hand_tcp
+  planning_frame: world
 topic:
   sub:
     cmd_pose:
