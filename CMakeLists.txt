@@ -1,3 +1,4 @@
+## Nice GitLab tutorial about CMake: https://cliutils.gitlab.io/modern-cmake/chapters/basics.html
 cmake_minimum_required(VERSION 3.0.2)
 project(for_franka_ros)
 
@@ -53,6 +54,24 @@ catkin_package(
     Eigen3
 )
 
+##########
+## YAML ##
+##########
+
+include(FetchContent)
+FetchContent_Declare(
+        yaml-cpp
+        GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git 
+        GIT_TAG yaml-cpp-0.7.0
+)
+FetchContent_GetProperties(yaml-cpp)
+
+if(NOT yaml-cpp_POPULATED)
+  message(STATUS "Fetching yaml-cpp...")
+  FetchContent_Populate(yaml-cpp)
+  add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR})
+endif()
+
 ###########
 ## Build ##
 ###########
@@ -63,13 +82,12 @@ include_directories(
  include ${catkin_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR}
 )
 
-
-
 ## Declare a C++ library
 set(PROJECT_LIB_FILES 
     src/control_arm.cpp
 )
 
+## TODO: Check diff between executable and lib 
 add_library(
         ${PROJECT_NAME}_lib
         ${PROJECT_LIB_FILES}
@@ -85,4 +103,5 @@ target_link_libraries(
     ${PROJECT_NAME}_lib
     ${EIGEN3_LIBRARIES}
     ${catkin_LIBRARIES}
+    yaml-cpp::yaml-cpp 
 )

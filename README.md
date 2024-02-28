@@ -67,15 +67,13 @@ catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 ## TODO: 
 - [x] Create `control_arm.cpp` interface [simple moveit wrapper]
 - [x] Add instructions for building/using Dockerfile 
-- [x] Create `or_lab1.py`
-- [x] Test `or_lab1.py` 
-- [x] Create `or_lab2.py`
-- [x] Edit prototyped methods
-- [x] Add .gitignore
-- [x] Launch position controller
-- [x] Launch joint_trajectory_controller
-- [x] Create `or_lab3.py`
 - [x] Debug init HoCook 
-- [ ] Add [class inheritance](https://realpython.com/python-super/) and develop one Lab class that will be inherited by each instance of the lab
-- [ ] Add analytic IK [Choose closest solution]
-- [ ] Test joint pose commands 
+- [ ] [py] Add [class inheritance](https://realpython.com/python-super/) and develop one Lab class that will be inherited by each instance of the lab
+- [ ] [cpp] Refactor 
+- [ ] [cpp] Add yaml topic name reading 
+- [ ] [cpp] Add servo
+- [ ] [cpp] Add analytic IK [choose closest solution]
+- [ ] [cpp] Test joint pose commands 
+- [ ] [cpp] Change to the shorter namespace 
+- [ ] [cpp] Test with multiple robots (IFACE)
+- [ ] [docs] Add CMake stuff

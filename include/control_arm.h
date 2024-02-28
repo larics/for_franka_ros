@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <vector>
 
+#include <yaml-cpp/yaml.h>
+
 // ROS
 #include <controller_manager_msgs/ListControllers.h>
 #include <controller_manager_msgs/SwitchController.h>
@@ -89,7 +91,7 @@ public:
   // Run method
   void run();
 
-  // It's not possible to access private members of this class from another clas
+  // It's not possible to access private members of this class from another class
   // Link to issue that explains it:
   // https://stackoverflow.com/questions/18944451/how-to-make-a-derived-class-access-the-private-member-data
 private:
@@ -97,66 +99,82 @@ private:
   bool readParameters();
 
   // Initialization method
-  void init();
+  void initRobot();
 
   // ROS node handle
-  ros::NodeHandle nodeHandle_;
-  ros::NodeHandle nodeHandleWithoutNs_;
+  ros::NodeHandle nH;
+  ros::NodeHandle nHns;
 
   // transformListener
   tf::TransformListener listener;
   tf::TransformBroadcaster broadcaster;
 
+  // Topic names
+  std::string dispTrajTopicName; 
+  std::string currPoseTopicName;
+  std::string cmdPoseTopicName;
+  std::string cmdToolOrientTopicName;
+  std::string cmdDeltaPoseTopicName;
+
+  // Service names
+  std::string disableCollisionSrvName;
+  std::string addCollisionObjectSrvName;
+  std::string startPositionCtlSrvName;
+  std::string startJointTrajCtlSrvName;
+  std::string startJointGroupPositionCtlSrvName;
+  std::string startJointGroupVelocityCtlSrvName;
+  std::string getIkSrvName; 
+
+  // Topic queue sizes
+  int dispTrajQSize;
+  int currPoseQSize;
+  int cmdPoseQSize;
+  int cmdToolOrientQSize;
+  int cmdDeltaPoseQSize;
+
   // ROS Publishers
-  ros::Publisher displayTrajectoryPublisher_;
-  ros::Publisher currentPosePublisher_;
-  ros::Publisher cmdJoint1Publisher;
-  ros::Publisher cmdJointGroupPositionPublisher;
-  ros::Publisher cmdJointGroupVelocityPublisher;
+  ros::Publisher dispTrajPub;
+  ros::Publisher currPosePub;
+  ros::Publisher cmdQ1Pub;
+  ros::Publisher cmdJointGroupPositionPub;
+  ros::Publisher cmdJointGroupVelocityPub;
 
   // ROS Subscribers
-  ros::Subscriber armCmdPoseSubscriber_;
-  ros::Subscriber armCmdDeltaPoseSubscriber_;
-  ros::Subscriber armCmdToolOrientationSubscriber_;
+  ros::Subscriber cmdPoseSub;
+  ros::Subscriber cmdDeltaPoseSub;
+  ros::Subscriber cmdToolOrientSub;
 
   // ROS Services
-  ros::ServiceServer disableCollisionService_;
-  ros::ServiceServer addCollisionObjectService_;
-  ros::ServiceServer startPositionControllersService_;
-  ros::ServiceServer startJointTrajectoryControllerService_;
-  ros::ServiceServer startJointGroupPositionControllerService_;
-  ros::ServiceServer startJointGroupVelocityControllerService_;
-  ros::ServiceServer getIkService_; 
+  ros::ServiceServer getIkSrv; 
+  ros::ServiceServer disableCollisionSrv;
+  ros::ServiceServer addCollisionObjectSrv;
+  ros::ServiceServer startPositionCtlSrv;
+  ros::ServiceServer startJointTrajCtlSrv;
+  ros::ServiceServer startJointGroupPositionCtlSrv;
+  ros::ServiceServer startJointGroupVelocityCtlSrv;
 
   // ROS Service clients
-  ros::ServiceClient applyPlanningSceneServiceClient_;
-  ros::ServiceClient realRobotDriverInitServiceClient_;
-  ros::ServiceClient addCollisionObjectServiceClient_;
-  ros::ServiceClient switchControllerServiceClient_;
-  ros::ServiceClient listControllersServiceClient_;
-  ros::ServiceClient switchToPositionControllerServiceClient_;
-  ros::ServiceClient switchToTrajectoryControllerServiceClient_;
+  ros::ServiceClient applyPlanningSceneSrvCli;
+  ros::ServiceClient realRobotDriverInitSrvCli;
+  ros::ServiceClient addCollisionObjectSrvCli;
+  ros::ServiceClient switchCtlSrvCli;
+  ros::ServiceClient listCtlSrvCli;
+  ros::ServiceClient switchToPositionCtlSrvCli;
+  ros::ServiceClient switchToTrajectoryCtlSrvCli;
 
   // ROS Subscriber Callback
-  void cmdPoseCallback(const geometry_msgs::Pose::ConstPtr &msg);
-  void cmdDeltaPoseCallback(const geometry_msgs::Pose::ConstPtr &msg);
-  void cmdToolOrientationCallback(const geometry_msgs::Point::ConstPtr &msg);
+  void cmdPoseCb(const geometry_msgs::Pose::ConstPtr &msg);
+  void cmdDeltaPoseCb(const geometry_msgs::Pose::ConstPtr &msg);
+  void cmdToolOrientationCb(const geometry_msgs::Point::ConstPtr &msg);
 
   // ROS Services callbacks
-  bool disableCollisionServiceCallback(std_srvs::TriggerRequest &req,
-                                       std_srvs::TriggerResponse &res);
-  bool addCollisionObjectServiceCallback(std_srvs::TriggerRequest &req,
-                                         std_srvs::TriggerResponse &res);
-  bool startPositionControllers(std_srvs::TriggerRequest &req,
-                                std_srvs::TriggerResponse &res);
-  bool startJointTrajectoryController(std_srvs::TriggerRequest &req,
-                                      std_srvs::TriggerResponse &res);
-  bool startJointGroupPositionController(std_srvs::TriggerRequest &req,
-                                         std_srvs::TriggerResponse &res);
-  bool startJointGroupVelocityController(std_srvs::TriggerRequest &req,
-                                         std_srvs::TriggerResponse &res);
-  bool getIkServiceCallback(for_franka_ros::getIkRequest &req, 
-                            for_franka_ros::getIkResponse &res); 
+  bool disableCollisionSrvCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
+  bool addCollisionObjectSrvCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
+  bool startPositionCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
+  bool startJointTrajCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
+  bool startJointGroupPositionCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
+  bool startJointGroupVelocityCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
+  bool getIkSrvCb(for_franka_ros::getIkRequest &req, for_franka_ros::getIkResponse &res); 
 
   // DisplayTrajectory
   moveit_msgs::DisplayTrajectory displayTrajectory_;
