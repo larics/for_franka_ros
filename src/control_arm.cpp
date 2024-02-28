@@ -40,7 +40,7 @@ void ControlArm::init() {
 
   planningSceneInitialized_ = setPlanningScene();
 
-  // Initialize publishers and subscribers;
+  // Initialize publishers and subscribers [Move to some config file maybe better] 
   std::string displayTrajectoryTopicName;
   int displayTrajectoryQueueSize;
   std::string currentPoseTopicName;
@@ -170,8 +170,7 @@ bool ControlArm::setMoveGroup() {
 
   ROS_INFO("[ControlArm] Setting move group.");
 
-  m_moveGroupPtr =
-      new moveit::planning_interface::MoveGroupInterface(GROUP_NAME);
+  m_moveGroupPtr = new moveit::planning_interface::MoveGroupInterface(GROUP_NAME);
 
   // Allow replanning
   m_moveGroupPtr->allowReplanning(true);
@@ -196,6 +195,17 @@ bool ControlArm::setPlanningScene() {
   return true;
 }
 
+void ControlArm::getBasicInfo() {
+
+  if (moveGroupInitialized_) {
+
+    ROS_INFO("[ControlArm] Reference planning frame: %s",
+             m_moveGroupPtr->getPlanningFrame().c_str());
+    ROS_INFO("[ControlArm] Reference end effector frame: %s",
+             m_moveGroupPtr->getEndEffectorLink().c_str());
+  }
+}
+
 // This is wrong, we should pass cmdPose as argument into function and then set
 // it if we plan to use setters
 bool ControlArm::setCmdPose() {
@@ -206,17 +216,6 @@ bool ControlArm::setCmdPose() {
     return true;
   }
   return false;
-}
-
-void ControlArm::getBasicInfo() {
-
-  if (moveGroupInitialized_) {
-
-    ROS_INFO("[ControlArm] Reference planning frame: %s",
-             m_moveGroupPtr->getPlanningFrame().c_str());
-    ROS_INFO("[ControlArm] Reference end effector frame: %s",
-             m_moveGroupPtr->getEndEffectorLink().c_str());
-  }
 }
 
 void ControlArm::cmdPoseCallback(const geometry_msgs::Pose::ConstPtr &msg) {
@@ -303,7 +302,6 @@ void ControlArm::sendToCmdPoses(std::vector<geometry_msgs::Pose> poses) {
     m_cmdPose.position = poses.at(i).position;
     m_cmdPose.orientation = poses.at(i).orientation;
     sendToCmdPose();
-    // if (m_moveGroupPtr->state)
   }
 }
 
@@ -323,14 +321,10 @@ bool ControlArm::sendToDeltaCmdPose() {
   cmdPose.position.x = currentROSPose_.position.x + m_cmdDeltaPose.position.x;
   cmdPose.position.y = currentROSPose_.position.y + m_cmdDeltaPose.position.y;
   cmdPose.position.z = currentROSPose_.position.z + m_cmdDeltaPose.position.z;
-  cmdPose.orientation.x =
-      currentROSPose_.orientation.x + m_cmdDeltaPose.orientation.x;
-  cmdPose.orientation.y =
-      currentROSPose_.orientation.y + m_cmdDeltaPose.orientation.y;
-  cmdPose.orientation.z =
-      currentROSPose_.orientation.z + m_cmdDeltaPose.orientation.z;
-  cmdPose.orientation.w =
-      currentROSPose_.orientation.w + m_cmdDeltaPose.orientation.w;
+  cmdPose.orientation.x = currentROSPose_.orientation.x + m_cmdDeltaPose.orientation.x;
+  cmdPose.orientation.y = currentROSPose_.orientation.y + m_cmdDeltaPose.orientation.y;
+  cmdPose.orientation.z = currentROSPose_.orientation.z + m_cmdDeltaPose.orientation.z;
+  cmdPose.orientation.w = currentROSPose_.orientation.w + m_cmdDeltaPose.orientation.w;
 
   ROS_INFO_STREAM("[ControlArm] currentPose: " << cmdPose);
 
@@ -667,7 +661,7 @@ bool ControlArm::getIkServiceCallback(for_franka_ros::getIkRequest &req,
 
 //bool ControlArm::getAnalyticIK(const geometry_msgs::Pose wantedPose)
 //{
-//
+// TODO: Add analytic IK for Franka if exists
 //
 //}
 
@@ -683,6 +677,7 @@ Eigen::MatrixXd ControlArm::getJacobian(Eigen::Vector3d refPointPosition) {
   return jacobianMatrix;
 }
 
+// TOOD: Move to utils
 float ControlArm::round(float var) {
 
   float value = (int)(var * 1000 + .5);
