@@ -24,41 +24,38 @@ ControlArm::ControlArm(ros::NodeHandle nh) : nH(nh) {
 
 ControlArm::~ControlArm() {}
 
-
 void ControlArm::initRobot() {
 
   ROS_INFO("[ControlArm] Started node initialization.");
 
   // Set move group and planning scene
-  moveGroupInitialized_     = setMoveGroup();
-  planningSceneInitialized_ = setPlanningScene();
+  moveGroupInit     = setMoveGroup();
+  planSceneInit     = setPlanningScene();
 
-  ROS_INFO_NAMED("arm_ctl", "Initializing subscribers/publishers...");
-  dispTrajPub = nH.advertise<moveit_msgs::DisplayTrajectory>(dispTrajTopicName, dispTrajQSize);
-  currPosePub = nH.advertise<geometry_msgs::Pose>(currPoseTopicName, currPoseQSize);
-  cmdQ1Pub = nHns.advertise<std_msgs::Float64>(std::string("franka_ph/joint_1_position_controller/command"), 1);
-  cmdJointGroupPositionPub = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_position_controller/command"), 1);
-  cmdJointGroupVelocityPub = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_velocity_controller/command"), 1);
+  dispTrajPub               = nH.advertise<moveit_msgs::DisplayTrajectory>(dispTrajTopicName, dispTrajQSize);
+  currPosePub               = nH.advertise<geometry_msgs::Pose>(currPoseTopicName, currPoseQSize);
+  cmdQ1Pub                  = nHns.advertise<std_msgs::Float64>(std::string("franka_ph/joint_1_position_controller/command"), 1);
+  cmdJointGroupPositionPub  = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_position_controller/command"), 1);
+  cmdJointGroupVelocityPub  = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_velocity_controller/command"), 1);
 
   // Subscribers
-  cmdPoseSub = nH.subscribe<geometry_msgs::Pose>(cmdPoseTopicName, cmdPoseQSize, &ControlArm::cmdPoseCb, this);
-  cmdToolOrientSub = nH.subscribe<geometry_msgs::Point>(cmdToolOrientTopicName, cmdToolOrientQSize, &ControlArm::cmdToolOrientationCb, this);
-  cmdDeltaPoseSub = nH.subscribe<geometry_msgs::Pose>(cmdDeltaPoseTopicName, cmdDeltaPoseQSize, &ControlArm::cmdDeltaPoseCb, this);
+  cmdPoseSub                = nH.subscribe<geometry_msgs::Pose>(cmdPoseTopicName, cmdPoseQSize, &ControlArm::cmdPoseCb, this);
+  cmdToolOrientSub          = nH.subscribe<geometry_msgs::Point>(cmdToolOrientTopicName, cmdToolOrientQSize, &ControlArm::cmdToolOrientationCb, this);
+  cmdDeltaPoseSub           = nH.subscribe<geometry_msgs::Pose>(cmdDeltaPoseTopicName, cmdDeltaPoseQSize, &ControlArm::cmdDeltaPoseCb, this);
   ROS_INFO_NAMED("arm_ctl", "Initialized subscribers/publishers.");
 
   // Initialize Services
-  ROS_INFO_NAMED("arm_ctl", "Initializing services...");
-  getIkSrv = nH.advertiseService(getIkSrvName, &ControlArm::getIkSrvCb, this);
-  disableCollisionSrv = nH.advertiseService(disableCollisionSrvName, &ControlArm::disableCollisionSrvCb, this);
-  addCollisionObjectSrv = nH.advertiseService(addCollisionObjectSrvName, &ControlArm::addCollisionObjectSrvCb, this);
-  startPositionCtlSrv = nH.advertiseService(startPositionCtlSrvName, &ControlArm::startPositionCtlCb, this);
-  startJointTrajCtlSrv = nH.advertiseService(startJointTrajCtlSrvName, &ControlArm::startJointTrajCtlCb, this);
+  getIkSrv                      = nH.advertiseService(getIkSrvName, &ControlArm::getIkSrvCb, this);
+  disableCollisionSrv           = nH.advertiseService(disableCollisionSrvName, &ControlArm::disableCollisionSrvCb, this);
+  addCollisionObjectSrv         = nH.advertiseService(addCollisionObjectSrvName, &ControlArm::addCollisionObjectSrvCb, this);
+  startPositionCtlSrv           = nH.advertiseService(startPositionCtlSrvName, &ControlArm::startPositionCtlCb, this);
+  startJointTrajCtlSrv          = nH.advertiseService(startJointTrajCtlSrvName, &ControlArm::startJointTrajCtlCb, this);
   startJointGroupPositionCtlSrv = nH.advertiseService(startJointGroupPosCtlSrvName, &ControlArm::startJointGroupPositionCtlCb, this);
   startJointGroupVelocityCtlSrv = nH.advertiseService(startJointGroupVelCtlSrvName, &ControlArm::startJointGroupVelocityCtlCb, this);
+  changeRobotStateSrv           = nH.advertiseService(changeRobotStateSrvName, &ControlArm::setStateCb, this); 
   ROS_INFO_NAMED("arm_ctl", "Initialized services.");
 
   // Initialize Clients for other services
-  ROS_INFO_NAMED("arm_ctl", "Initializing service clients...");
   applyPlanningSceneSrvCli = nHns.serviceClient<moveit_msgs::ApplyPlanningScene>("apply_planning_scene");
   applyPlanningSceneSrvCli.waitForExistence();
   ROS_INFO_NAMED("arm_ctl", "Initialized service clients. ");
@@ -92,6 +89,7 @@ void ControlArm::loadConfig() {
   startJointTrajCtlSrvName          = config["srv"]["start_joint_traj_ctl"]["name"].as<std::string>(); 
   startJointGroupPosCtlSrvName      = config["srv"]["start_joint_group_pos_ctl"]["name"].as<std::string>(); 
   startJointGroupVelCtlSrvName      = config["srv"]["start_joint_group_vel_ctl"]["name"].as<std::string>(); 
+  changeRobotStateSrvName           = config["srv"]["change_robot_state"]["name"].as<std::string>(); 
   ROS_INFO_NAMED("arm_ctl", "named services"); 
 
 }
@@ -106,7 +104,7 @@ bool ControlArm::setMoveGroup() {
   m_moveGroupPtr->allowReplanning(true);
 
   // Get current robot arm state
-  getCurrentArmState();
+  getArmState();
 
   return true;
 }
@@ -126,7 +124,7 @@ bool ControlArm::setPlanningScene() {
 
 void ControlArm::getBasicInfo() {
 
-  if (moveGroupInitialized_) {
+  if (moveGroupInit) {
 
     ROS_INFO("[ControlArm] Reference planning frame: %s",
              m_moveGroupPtr->getPlanningFrame().c_str());
@@ -138,11 +136,96 @@ void ControlArm::getBasicInfo() {
 // it if we plan to use setters
 bool ControlArm::setCmdPose() {
 
-  if (moveGroupInitialized_) {
+  if (moveGroupInit) {
     m_moveGroupPtr->setPoseTarget(m_cmdPose);
     return true;
   }
   return false;
+}
+
+bool ControlArm::setStateCb(for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res)
+{
+
+    // Why would this be boolean? 
+
+    auto itr = std::find(std::begin(stateNames), std::end(stateNames), req.state);
+    
+
+    if ( itr != std::end(stateNames))
+    {
+        int iX = std::distance(stateNames, itr); 
+        robotState  = (state)iX; 
+        ROS_INFO_STREAM("Switching state!");
+        res.success = true;  
+    }else{
+        ROS_INFO_STREAM("Failed switching to state " << req.state); 
+        res.success = false; 
+    } 
+
+    return res.success; 
+
+}
+
+void ControlArm::getArmState() {
+
+  // method is more like refresh current kinematic state
+  // (getCurrentKinematicState)
+  m_currentRobotStatePtr = m_moveGroupPtr->getCurrentState();
+}
+
+void ControlArm::getEEState(const std::string eeLinkName) {
+
+  m_endEffectorState =
+      m_currentRobotStatePtr->getGlobalLinkTransform(eeLinkName);
+
+  bool debug = false;
+  if (debug) {
+
+    ROS_INFO_STREAM("Translation: \n"
+                    << m_endEffectorState.translation() << "\n");
+    ROS_INFO_STREAM("Rotation: \n" << m_endEffectorState.rotation() << "\n");
+  }
+}
+
+void ControlArm::getJointPositions(const std::vector<std::string> &jointNames, std::vector<double> &jointGroupPositions) {
+
+  m_currentRobotStatePtr->copyJointGroupPositions(m_jointModelGroupPtr,
+                                                  jointGroupPositions);
+
+  bool debug = true;
+  if (debug) {
+    for (std::size_t i = 0; i < jointNames.size(); ++i) {
+      ROS_INFO("Joint %s: %f", jointNames[i].c_str(), jointGroupPositions[i]);
+    }
+  }
+}
+
+bool ControlArm::getIK(const geometry_msgs::Pose wantedPose, const std::size_t attempts, double timeout) {
+
+  bool found_ik = m_currentRobotStatePtr->setFromIK(m_jointModelGroupPtr, wantedPose);
+
+  bool debug = false;
+  if (debug) {
+    ROS_INFO("Found IK solution!");
+  }
+
+  return found_ik;
+}
+
+bool ControlArm::getIkSrvCb(for_franka_ros::getIkRequest &req, for_franka_ros::getIkResponse &res)
+{
+    int attempts = 10;
+    int timeout = 1;
+    bool success = getIK(req.wantedPose, attempts, timeout);
+    std::vector<double> jointPositions;
+    m_currentRobotStatePtr->copyJointGroupPositions(m_jointModelGroupPtr,
+                                                    jointPositions);
+
+    sensor_msgs::JointState jointState;
+    jointState.position = jointPositions;
+    res.jointState = jointState;
+
+    return success;
 }
 
 void ControlArm::cmdPoseCb(const geometry_msgs::Pose::ConstPtr &msg) {
@@ -153,7 +236,8 @@ void ControlArm::cmdPoseCb(const geometry_msgs::Pose::ConstPtr &msg) {
   m_cmdPose.position = msg->position;
   m_cmdPose.orientation = msg->orientation;
 
-  sendToCmdPose();
+  recivPoseCmd = true; 
+  
 }
 
 void ControlArm::cmdDeltaPoseCb(const geometry_msgs::Pose::ConstPtr &msg) {
@@ -172,7 +256,7 @@ void ControlArm::cmdToolOrientationCb(const geometry_msgs::Point::ConstPtr &msg)
   ROS_INFO("[ControlArm] Received cmd tool orientation...");
 
   // Get current end effector state
-  getCurrentEndEffectorState(endEffectorLinkName);
+  getEEState(EE_LINK_NAME);
 
   geometry_msgs::Pose cmdPose;
   tf2::Quaternion cmdQuaternion;
@@ -221,27 +305,24 @@ bool ControlArm::sendToCmdPose() {
   return success;
 }
 
-void ControlArm::sendToCmdPoses(std::vector<geometry_msgs::Pose> poses) {
+bool ControlArm::sendToCmdPoses(std::vector<geometry_msgs::Pose> poses) {
   for (int i; i < poses.size(); ++i) {
     ROS_INFO_STREAM("[ControlArmNode] Visiting pose " << i);
     m_cmdPose.position = poses.at(i).position;
     m_cmdPose.orientation = poses.at(i).orientation;
     sendToCmdPose();
   }
+  return true; 
 }
 
 bool ControlArm::sendToDeltaCmdPose() {
 
   // populate m_cmd pose
-  Eigen::Affine3d currentPose_ =
-      m_moveGroupPtr->getCurrentState()->getFrameTransform(
-          "lwa4p_link6"); // Currently lwa4p_link6, possible to use end effector
-                          // link
+  Eigen::Affine3d currentPose_ = m_moveGroupPtr->getCurrentState()->getFrameTransform(EE_LINK_NAME); 
   geometry_msgs::Pose currentROSPose_;
   tf::poseEigenToMsg(currentPose_, currentROSPose_);
 
   ROS_INFO_STREAM("[ControlArm] currentROSPose_:" << currentROSPose_);
-
   geometry_msgs::Pose cmdPose;
   cmdPose.position.x = currentROSPose_.position.x + m_cmdDeltaPose.position.x;
   cmdPose.position.y = currentROSPose_.position.y + m_cmdDeltaPose.position.y;
@@ -250,7 +331,6 @@ bool ControlArm::sendToDeltaCmdPose() {
   cmdPose.orientation.y = currentROSPose_.orientation.y + m_cmdDeltaPose.orientation.y;
   cmdPose.orientation.z = currentROSPose_.orientation.z + m_cmdDeltaPose.orientation.z;
   cmdPose.orientation.w = currentROSPose_.orientation.w + m_cmdDeltaPose.orientation.w;
-
   ROS_INFO_STREAM("[ControlArm] currentPose: " << cmdPose);
 
   // set CMD pose
@@ -259,6 +339,14 @@ bool ControlArm::sendToDeltaCmdPose() {
   sendToCmdPose();
 
   return true;
+}
+
+bool ControlArm::sendToServoCmdPose(){
+
+  ROS_INFO_STREAM("Activating MoveIt Servo!"); 
+
+  return true; 
+
 }
 
 void ControlArm::addCollisionObject(moveit_msgs::PlanningScene &planningScene) {
@@ -300,11 +388,11 @@ void ControlArm::addCollisionObject(moveit_msgs::PlanningScene &planningScene) {
   ROS_INFO("Added collisions");
 }
 
-bool ControlArm::disableCollisionSrvCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res) {
+bool ControlArm::disableCollisionSrvCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res) 
+{
   // TODO: Move this to specific script because it's related to magnetic
-  // localization
-
-  if (planningSceneInitialized_) {
+  // localization -> or grasping
+  if (planSceneInit) {
     collision_detection::AllowedCollisionMatrix acm =
         m_planningScenePtr->getAllowedCollisionMatrix();
 
@@ -365,8 +453,7 @@ void ControlArm::getRunningControllers(std::vector<std::string> &runningControll
   // runningControllerNames);
 }
 
-bool ControlArm::startPositionCtlCb(std_srvs::TriggerRequest &req,
-                                          std_srvs::TriggerResponse &res) {
+bool ControlArm::startPositionCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res) {
 
   std::vector<std::string> runningControllers;
   getRunningControllers(runningControllers);
@@ -497,68 +584,6 @@ bool ControlArm::addCollisionObjectSrvCb(std_srvs::TriggerRequest &req, std_srvs
   // http://docs.ros.org/en/melodic/api/moveit_tutorials/html/doc/planning_scene_ros_api/planning_scene_ros_api_tutorial.html
 }
 
-void ControlArm::getCurrentArmState() {
-
-  // method is more like refresh current kinematic state
-  // (getCurrentKinematicState)
-  m_currentRobotStatePtr = m_moveGroupPtr->getCurrentState();
-}
-
-void ControlArm::getCurrentEndEffectorState(const std::string endEffectorLinkName) {
-
-  m_endEffectorState =
-      m_currentRobotStatePtr->getGlobalLinkTransform(endEffectorLinkName);
-
-  bool debug = false;
-  if (debug) {
-
-    ROS_INFO_STREAM("Translation: \n"
-                    << m_endEffectorState.translation() << "\n");
-    ROS_INFO_STREAM("Rotation: \n" << m_endEffectorState.rotation() << "\n");
-  }
-}
-
-void ControlArm::getJointPositions(const std::vector<std::string> &jointNames, std::vector<double> &jointGroupPositions) {
-
-  m_currentRobotStatePtr->copyJointGroupPositions(m_jointModelGroupPtr,
-                                                  jointGroupPositions);
-
-  bool debug = true;
-  if (debug) {
-    for (std::size_t i = 0; i < jointNames.size(); ++i) {
-      ROS_INFO("Joint %s: %f", jointNames[i].c_str(), jointGroupPositions[i]);
-    }
-  }
-}
-
-bool ControlArm::getIK(const geometry_msgs::Pose wantedPose, const std::size_t attempts, double timeout) {
-
-  bool found_ik = m_currentRobotStatePtr->setFromIK(m_jointModelGroupPtr, wantedPose);
-
-  bool debug = false;
-  if (debug) {
-    ROS_INFO("Found IK solution!");
-  }
-
-  return found_ik;
-}
-
-bool ControlArm::getIkSrvCb(for_franka_ros::getIkRequest &req, for_franka_ros::getIkResponse &res)
-{
-    int attempts = 10;
-    int timeout = 1;
-    bool success = getIK(req.wantedPose, attempts, timeout);
-    std::vector<double> jointPositions;
-    m_currentRobotStatePtr->copyJointGroupPositions(m_jointModelGroupPtr,
-                                                    jointPositions);
-
-    sensor_msgs::JointState jointState;
-    jointState.position = jointPositions;
-    res.jointState = jointState;
-
-    return success;
-}
-
 //bool ControlArm::getAnalyticIK(const geometry_msgs::Pose wantedPose)
 //{
 // TODO: Add analytic IK for Franka if exists
@@ -577,7 +602,7 @@ Eigen::MatrixXd ControlArm::getJacobian(Eigen::Vector3d refPointPosition) {
   return jacobianMatrix;
 }
 
-// TOOD: Move to utils
+
 float ControlArm::round(float var) {
 
   float value = (int)(var * 1000 + .5);
@@ -590,7 +615,7 @@ void ControlArm::run() {
 
   while (ros::ok) {
     // Get current joint position for every joint in robot arm
-    getCurrentArmState();
+    getArmState();
 
     // Get all joints
     m_jointModelGroupPtr = m_currentRobotStatePtr->getJointModelGroup(GROUP_NAME);
@@ -598,8 +623,35 @@ void ControlArm::run() {
     geometry_msgs::Pose currentROSPose_; tf::poseEigenToMsg(currentPose_, currentROSPose_);
     currPosePub.publish(currentROSPose_);
 
+
+    if (recivPoseCmd){
+
+      if(robotState == TRAJ_CTL) 
+      {
+        sendToCmdPose(); 
+      }
+
+      if(robotState == SERVO_CTL)
+      {
+        sendToServoCmdPose(); 
+      }
+
+      if(robotState == IDLE)
+      {
+        ROS_WARN("Arm is in the IDLE mode, please activate correct control mode!"); 
+      }
+
+      recivPoseCmd = false; 
+
+    };
+
+    ROS_INFO_STREAM_THROTTLE(5, "Current arm state is: " << stateNames[robotState]); 
+    
     // Sleep
     r.sleep();
 
   }
 }
+
+
+// TOOD: Move to utils

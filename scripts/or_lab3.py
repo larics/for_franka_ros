@@ -68,8 +68,6 @@ class OrLab3():
         self.positions = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Q_23.txt")
         self.velocities = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qd_23.txt")
         self.acceleration = read_file("/home/developer/catkin_ws/src/for_franka_ros/include/lab0_hocook_Qdd_23.txt")
-
-
         #print("Position duplicates: {}".format(has_duplicates(self.positions)))
 
     def _init_subscribers(self): 
@@ -316,7 +314,6 @@ class OrLab3():
                     rospy.logwarn("Recieved p: {} \t Recieved q: {}".format(self.p_reciv, self.q_reciv))
             except rospy.ROSInterruptException: 
                 exit()
-
 
 if __name__ == "__main__": 
 

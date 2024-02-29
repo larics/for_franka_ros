@@ -34,12 +34,12 @@ add_service_files(
         DIRECTORY srv
         FILES
         getIk.srv
+        changeState.srv
 )
 
 generate_messages(
         DEPENDENCIES std_msgs geometry_msgs sensor_msgs
 )
-
 
 catkin_package(
   INCLUDE_DIRS include srv
@@ -55,12 +55,6 @@ catkin_package(
     Eigen3
     yaml-cpp
 )
-
-##########
-## YAML ##
-##########
-
-
 
 ###########
 ## Build ##

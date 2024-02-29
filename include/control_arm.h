@@ -56,7 +56,11 @@
 #include "for_franka_ros/getIk.h"
 #include "for_franka_ros/getIkRequest.h"
 #include "for_franka_ros/getIkResponse.h"
+#include "for_franka_ros/changeState.h"
+#include "for_franka_ros/changeStateRequest.h"
+#include "for_franka_ros/changeStateResponse.h"
 
+#define stringify( name ) #name
 
 class ControlArm {
 
@@ -127,6 +131,7 @@ private:
   std::string startJointGroupPosCtlSrvName;
   std::string startJointGroupVelCtlSrvName;
   std::string getIkSrvName; 
+  std::string changeRobotStateSrvName; 
 
   // Topic queue sizes
   int dispTrajQSize;
@@ -155,6 +160,7 @@ private:
   ros::ServiceServer startJointTrajCtlSrv;
   ros::ServiceServer startJointGroupPositionCtlSrv;
   ros::ServiceServer startJointGroupVelocityCtlSrv;
+  ros::ServiceServer changeRobotStateSrv; 
 
   // ROS Service clients
   ros::ServiceClient applyPlanningSceneSrvCli;
@@ -170,7 +176,7 @@ private:
   void cmdDeltaPoseCb(const geometry_msgs::Pose::ConstPtr &msg);
   void cmdToolOrientationCb(const geometry_msgs::Point::ConstPtr &msg);
 
-  // ROS Services callbacks
+  // ROS Services Callbacks
   bool disableCollisionSrvCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool addCollisionObjectSrvCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool startPositionCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
@@ -178,16 +184,56 @@ private:
   bool startJointGroupPositionCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool startJointGroupVelocityCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool getIkSrvCb(for_franka_ros::getIkRequest &req, for_franka_ros::getIkResponse &res); 
+  bool setStateCb(for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res);
 
-  // DisplayTrajectory
-  moveit_msgs::DisplayTrajectory displayTrajectory_;
+
+  // methods
+  bool sendToCmdPose();
+  bool sendToCmdPoses(std::vector<geometry_msgs::Pose> poses);
+  bool sendToDeltaCmdPose();
+  bool sendToServoCmdPose(); 
+  void addCollisionObject(moveit_msgs::PlanningScene &planningScene);
+  void getArmState();
+  void getEEState(const std::string eeLinkName);
+  void getJointPositions(const std::vector<std::string> &jointNames, std::vector<double> &jointGroupPositions);
+  void getRunningControllers(std::vector<std::string> &runningControllerNames);
+  bool getIK(const geometry_msgs::Pose wantedPose, const std::size_t attempts, double timeout);
+  bool getAnalyticIK(const geometry_msgs::Pose wantedPose); 
+
+  Eigen::MatrixXd getJacobian(Eigen::Vector3d refPointPosition); // Can be created as void and arg passed to be changed during execution
+  Eigen::MatrixXd getInertiaMatrix(Eigen::Vector3d refPointPosition);
+
+  // TODO: Move this to utils.cpp
+  float round(float var);
+
+  // Simple state machine
+  enum state 
+  {   
+      IDLE = 0,
+      TRAJ_CTL = 1, 
+      SERVO_CTL = 2
+  };
+
+  // stateNames 
+  const char* stateNames[3] =
+  {
+    stringify (IDLE), 
+    stringify (TRAJ_CTL), 
+    stringify (SERVO_CTL)
+  };
+
+  enum state robotState = IDLE; 
+
+    // DisplayTrajectory
+  moveit_msgs::DisplayTrajectory displayTraj;
 
   // Private variables
+  // It is not neccessary to have distinciton between private and public variable naming for now
   int sleepMs_;
-  bool realRobot_;
   bool enableVisualization_;
-  bool moveGroupInitialized_;
-  bool planningSceneInitialized_;
+  bool recivPoseCmd = false; 
+  bool moveGroupInit = false;
+  bool planSceneInit = false;
   bool blockingMovement = true;
   std::string endEffectorLinkName;
   geometry_msgs::Pose m_cmdPose;
@@ -196,28 +242,6 @@ private:
 
   // Vectors and arrays
   std::vector<double> m_jointPositions_;
-
-  bool sendToCmdPose();
-  void sendToCmdPoses(std::vector<geometry_msgs::Pose> poses);
-  bool sendToDeltaCmdPose();
-  void addCollisionObject(moveit_msgs::PlanningScene &planningScene);
-  void getCurrentArmState();
-  void getCurrentEndEffectorState(const std::string linkName);
-  void getJointPositions(const std::vector<std::string> &jointNames,
-                         std::vector<double> &jointGroupPositions);
-  void getRunningControllers(std::vector<std::string> &runningControllerNames);
-  bool getIK(const geometry_msgs::Pose wantedPose, const std::size_t attempts, double timeout);
-  bool getAnalyticIK(const geometry_msgs::Pose wantedPose); 
-
-  Eigen::MatrixXd getJacobian(Eigen::Vector3d
-                  refPointPosition); // Can be created as void and arg passed to
-                                     // be changed during execution
-  Eigen::MatrixXd getInertiaMatrix(Eigen::Vector3d refPointPosition);
-
-  // TODO: Move this to utils.cpp
-  float round(float var);
-
-  
 
 };
 
