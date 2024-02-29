@@ -33,32 +33,29 @@ void ControlArm::initRobot() {
   moveGroupInitialized_     = setMoveGroup();
   planningSceneInitialized_ = setPlanningScene();
 
-  ROS_INFO_NAMED("arm_ctl", "Initializing subscribers/publishers...");
-  dispTrajPub = nH.advertise<moveit_msgs::DisplayTrajectory>(dispTrajTopicName, dispTrajQSize);
-  currPosePub = nH.advertise<geometry_msgs::Pose>(currPoseTopicName, currPoseQSize);
-  cmdQ1Pub = nHns.advertise<std_msgs::Float64>(std::string("franka_ph/joint_1_position_controller/command"), 1);
-  cmdJointGroupPositionPub = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_position_controller/command"), 1);
-  cmdJointGroupVelocityPub = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_velocity_controller/command"), 1);
+  dispTrajPub               = nH.advertise<moveit_msgs::DisplayTrajectory>(dispTrajTopicName, dispTrajQSize);
+  currPosePub               = nH.advertise<geometry_msgs::Pose>(currPoseTopicName, currPoseQSize);
+  cmdQ1Pub                  = nHns.advertise<std_msgs::Float64>(std::string("franka_ph/joint_1_position_controller/command"), 1);
+  cmdJointGroupPositionPub  = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_position_controller/command"), 1);
+  cmdJointGroupVelocityPub  = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_velocity_controller/command"), 1);
 
   // Subscribers
-  cmdPoseSub = nH.subscribe<geometry_msgs::Pose>(cmdPoseTopicName, cmdPoseQSize, &ControlArm::cmdPoseCb, this);
-  cmdToolOrientSub = nH.subscribe<geometry_msgs::Point>(cmdToolOrientTopicName, cmdToolOrientQSize, &ControlArm::cmdToolOrientationCb, this);
-  cmdDeltaPoseSub = nH.subscribe<geometry_msgs::Pose>(cmdDeltaPoseTopicName, cmdDeltaPoseQSize, &ControlArm::cmdDeltaPoseCb, this);
+  cmdPoseSub                = nH.subscribe<geometry_msgs::Pose>(cmdPoseTopicName, cmdPoseQSize, &ControlArm::cmdPoseCb, this);
+  cmdToolOrientSub          = nH.subscribe<geometry_msgs::Point>(cmdToolOrientTopicName, cmdToolOrientQSize, &ControlArm::cmdToolOrientationCb, this);
+  cmdDeltaPoseSub           = nH.subscribe<geometry_msgs::Pose>(cmdDeltaPoseTopicName, cmdDeltaPoseQSize, &ControlArm::cmdDeltaPoseCb, this);
   ROS_INFO_NAMED("arm_ctl", "Initialized subscribers/publishers.");
 
   // Initialize Services
-  ROS_INFO_NAMED("arm_ctl", "Initializing services...");
-  getIkSrv = nH.advertiseService(getIkSrvName, &ControlArm::getIkSrvCb, this);
-  disableCollisionSrv = nH.advertiseService(disableCollisionSrvName, &ControlArm::disableCollisionSrvCb, this);
-  addCollisionObjectSrv = nH.advertiseService(addCollisionObjectSrvName, &ControlArm::addCollisionObjectSrvCb, this);
-  startPositionCtlSrv = nH.advertiseService(startPositionCtlSrvName, &ControlArm::startPositionCtlCb, this);
-  startJointTrajCtlSrv = nH.advertiseService(startJointTrajCtlSrvName, &ControlArm::startJointTrajCtlCb, this);
+  getIkSrv                      = nH.advertiseService(getIkSrvName, &ControlArm::getIkSrvCb, this);
+  disableCollisionSrv           = nH.advertiseService(disableCollisionSrvName, &ControlArm::disableCollisionSrvCb, this);
+  addCollisionObjectSrv         = nH.advertiseService(addCollisionObjectSrvName, &ControlArm::addCollisionObjectSrvCb, this);
+  startPositionCtlSrv           = nH.advertiseService(startPositionCtlSrvName, &ControlArm::startPositionCtlCb, this);
+  startJointTrajCtlSrv          = nH.advertiseService(startJointTrajCtlSrvName, &ControlArm::startJointTrajCtlCb, this);
   startJointGroupPositionCtlSrv = nH.advertiseService(startJointGroupPosCtlSrvName, &ControlArm::startJointGroupPositionCtlCb, this);
   startJointGroupVelocityCtlSrv = nH.advertiseService(startJointGroupVelCtlSrvName, &ControlArm::startJointGroupVelocityCtlCb, this);
   ROS_INFO_NAMED("arm_ctl", "Initialized services.");
 
   // Initialize Clients for other services
-  ROS_INFO_NAMED("arm_ctl", "Initializing service clients...");
   applyPlanningSceneSrvCli = nHns.serviceClient<moveit_msgs::ApplyPlanningScene>("apply_planning_scene");
   applyPlanningSceneSrvCli.waitForExistence();
   ROS_INFO_NAMED("arm_ctl", "Initialized service clients. ");
@@ -233,15 +230,11 @@ void ControlArm::sendToCmdPoses(std::vector<geometry_msgs::Pose> poses) {
 bool ControlArm::sendToDeltaCmdPose() {
 
   // populate m_cmd pose
-  Eigen::Affine3d currentPose_ =
-      m_moveGroupPtr->getCurrentState()->getFrameTransform(
-          "lwa4p_link6"); // Currently lwa4p_link6, possible to use end effector
-                          // link
+  Eigen::Affine3d currentPose_ = m_moveGroupPtr->getCurrentState()->getFrameTransform(EE_LINK_NAME); 
   geometry_msgs::Pose currentROSPose_;
   tf::poseEigenToMsg(currentPose_, currentROSPose_);
 
   ROS_INFO_STREAM("[ControlArm] currentROSPose_:" << currentROSPose_);
-
   geometry_msgs::Pose cmdPose;
   cmdPose.position.x = currentROSPose_.position.x + m_cmdDeltaPose.position.x;
   cmdPose.position.y = currentROSPose_.position.y + m_cmdDeltaPose.position.y;
@@ -250,7 +243,6 @@ bool ControlArm::sendToDeltaCmdPose() {
   cmdPose.orientation.y = currentROSPose_.orientation.y + m_cmdDeltaPose.orientation.y;
   cmdPose.orientation.z = currentROSPose_.orientation.z + m_cmdDeltaPose.orientation.z;
   cmdPose.orientation.w = currentROSPose_.orientation.w + m_cmdDeltaPose.orientation.w;
-
   ROS_INFO_STREAM("[ControlArm] currentPose: " << cmdPose);
 
   // set CMD pose
@@ -365,8 +357,7 @@ void ControlArm::getRunningControllers(std::vector<std::string> &runningControll
   // runningControllerNames);
 }
 
-bool ControlArm::startPositionCtlCb(std_srvs::TriggerRequest &req,
-                                          std_srvs::TriggerResponse &res) {
+bool ControlArm::startPositionCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res) {
 
   std::vector<std::string> runningControllers;
   getRunningControllers(runningControllers);
