@@ -56,6 +56,7 @@
 #include "for_franka_ros/getIk.h"
 #include "for_franka_ros/getIkRequest.h"
 #include "for_franka_ros/getIkResponse.h"
+#include "for_franka_ros/changeState.h"
 #include "for_franka_ros/changeStateRequest.h"
 #include "for_franka_ros/changeStateResponse.h"
 
@@ -130,6 +131,7 @@ private:
   std::string startJointGroupPosCtlSrvName;
   std::string startJointGroupVelCtlSrvName;
   std::string getIkSrvName; 
+  std::string changeRobotStateSrvName; 
 
   // Topic queue sizes
   int dispTrajQSize;
@@ -158,6 +160,7 @@ private:
   ros::ServiceServer startJointTrajCtlSrv;
   ros::ServiceServer startJointGroupPositionCtlSrv;
   ros::ServiceServer startJointGroupVelocityCtlSrv;
+  ros::ServiceServer changeRobotStateSrv; 
 
   // ROS Service clients
   ros::ServiceClient applyPlanningSceneSrvCli;
@@ -181,7 +184,7 @@ private:
   bool startJointGroupPositionCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool startJointGroupVelocityCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool getIkSrvCb(for_franka_ros::getIkRequest &req, for_franka_ros::getIkResponse &res); 
-  bool setStateCb(const for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res);
+  bool setStateCb(for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res);
 
 
   // methods

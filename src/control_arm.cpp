@@ -52,6 +52,7 @@ void ControlArm::initRobot() {
   startJointTrajCtlSrv          = nH.advertiseService(startJointTrajCtlSrvName, &ControlArm::startJointTrajCtlCb, this);
   startJointGroupPositionCtlSrv = nH.advertiseService(startJointGroupPosCtlSrvName, &ControlArm::startJointGroupPositionCtlCb, this);
   startJointGroupVelocityCtlSrv = nH.advertiseService(startJointGroupVelCtlSrvName, &ControlArm::startJointGroupVelocityCtlCb, this);
+  changeRobotStateSrv           = nH.advertiseService(changeRobotStateSrvName, &ControlArm::setStateCb, this); 
   ROS_INFO_NAMED("arm_ctl", "Initialized services.");
 
   // Initialize Clients for other services
@@ -88,6 +89,7 @@ void ControlArm::loadConfig() {
   startJointTrajCtlSrvName          = config["srv"]["start_joint_traj_ctl"]["name"].as<std::string>(); 
   startJointGroupPosCtlSrvName      = config["srv"]["start_joint_group_pos_ctl"]["name"].as<std::string>(); 
   startJointGroupVelCtlSrvName      = config["srv"]["start_joint_group_vel_ctl"]["name"].as<std::string>(); 
+  changeRobotStateSrvName           = config["srv"]["change_robot_state"]["name"].as<std::string>(); 
   ROS_INFO_NAMED("arm_ctl", "named services"); 
 
 }
@@ -141,7 +143,7 @@ bool ControlArm::setCmdPose() {
   return false;
 }
 
-bool ControlArm::setStateCb(const for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res)
+bool ControlArm::setStateCb(for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res)
 {
 
     // Why would this be boolean? 
