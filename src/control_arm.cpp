@@ -24,7 +24,6 @@ ControlArm::ControlArm(ros::NodeHandle nh) : nH(nh) {
 
 ControlArm::~ControlArm() {}
 
-
 void ControlArm::initRobot() {
 
   ROS_INFO("[ControlArm] Started node initialization.");
@@ -142,7 +141,7 @@ bool ControlArm::setCmdPose() {
   return false;
 }
 
-bool ControlArm::setState(const for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res)
+bool ControlArm::setStateCb(const for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res)
 {
 
     // Why would this be boolean? 
@@ -644,7 +643,7 @@ void ControlArm::run() {
 
     };
 
-    ROS_INFO_STREAM("Current arm state is: " << robotState); 
+    ROS_INFO_STREAM_THROTTLE(5, "Current arm state is: " << stateNames[robotState]); 
     
     // Sleep
     r.sleep();

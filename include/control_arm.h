@@ -173,7 +173,7 @@ private:
   void cmdDeltaPoseCb(const geometry_msgs::Pose::ConstPtr &msg);
   void cmdToolOrientationCb(const geometry_msgs::Point::ConstPtr &msg);
 
-  // ROS Services callbacks
+  // ROS Services Callbacks
   bool disableCollisionSrvCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool addCollisionObjectSrvCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool startPositionCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
@@ -181,26 +181,10 @@ private:
   bool startJointGroupPositionCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool startJointGroupVelocityCtlCb(std_srvs::TriggerRequest &req, std_srvs::TriggerResponse &res);
   bool getIkSrvCb(for_franka_ros::getIkRequest &req, for_franka_ros::getIkResponse &res); 
+  bool setStateCb(const for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res);
 
-  // DisplayTrajectory
-  moveit_msgs::DisplayTrajectory displayTraj;
 
-  // Private variables
-  // It is not neccessary to have distinciton between private and public variable naming for now
-  int sleepMs_;
-  bool enableVisualization_;
-  bool recivPoseCmd = false; 
-  bool moveGroupInit = false;
-  bool planSceneInit = false;
-  bool blockingMovement = true;
-  std::string endEffectorLinkName;
-  geometry_msgs::Pose m_cmdPose;
-  geometry_msgs::Pose m_lastCmdPose;
-  geometry_msgs::Pose m_cmdDeltaPose;
-
-  // Vectors and arrays
-  std::vector<double> m_jointPositions_;
-
+  // methods
   bool sendToCmdPose();
   bool sendToCmdPoses(std::vector<geometry_msgs::Pose> poses);
   bool sendToDeltaCmdPose();
@@ -212,7 +196,6 @@ private:
   void getRunningControllers(std::vector<std::string> &runningControllerNames);
   bool getIK(const geometry_msgs::Pose wantedPose, const std::size_t attempts, double timeout);
   bool getAnalyticIK(const geometry_msgs::Pose wantedPose); 
-  bool setState(const for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res);
 
   Eigen::MatrixXd getJacobian(Eigen::Vector3d refPointPosition); // Can be created as void and arg passed to be changed during execution
   Eigen::MatrixXd getInertiaMatrix(Eigen::Vector3d refPointPosition);
@@ -237,6 +220,25 @@ private:
   };
 
   enum state robotState = IDLE; 
+
+    // DisplayTrajectory
+  moveit_msgs::DisplayTrajectory displayTraj;
+
+  // Private variables
+  // It is not neccessary to have distinciton between private and public variable naming for now
+  int sleepMs_;
+  bool enableVisualization_;
+  bool recivPoseCmd = false; 
+  bool moveGroupInit = false;
+  bool planSceneInit = false;
+  bool blockingMovement = true;
+  std::string endEffectorLinkName;
+  geometry_msgs::Pose m_cmdPose;
+  geometry_msgs::Pose m_lastCmdPose;
+  geometry_msgs::Pose m_cmdDeltaPose;
+
+  // Vectors and arrays
+  std::vector<double> m_jointPositions_;
 
 };
 
