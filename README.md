@@ -67,8 +67,7 @@ catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 ## Useful resources
 
 * [ROS planning docs](https://ros-planning.github.io/moveit_tutorials/doc/pilz_industrial_motion_planner/pilz_industrial_motion_planner.html#sequence-of-multiple-segments)  
-
-
+* [FreeCAD docs](https://www.picuino.com/en/freecad-diferencia.html) for making obstacles for the experiments   
 
 ## TODO: 
 - [x] Create `control_arm.cpp` interface [simple moveit wrapper]

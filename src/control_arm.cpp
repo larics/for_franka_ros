@@ -643,7 +643,6 @@ Eigen::MatrixXd ControlArm::getJacobian(Eigen::Vector3d refPointPosition) {
   return jacobianMatrix;
 }
 
-
 std::vector<geometry_msgs::Pose> ControlArm::createCartesianWaypoints(geometry_msgs::Pose startPose, geometry_msgs::Pose endPose, int numPoints) {
     std::vector<geometry_msgs::Pose> result;
     geometry_msgs::Pose pose_;
@@ -676,7 +675,6 @@ std::vector<geometry_msgs::Pose> ControlArm::createCartesianWaypoints(geometry_m
 
     return result;
 }
-
 
 float ControlArm::round(float var) {
 
