@@ -286,7 +286,7 @@ bool ControlArm::sendToCmdPose() {
   // Call planner, compute plan and visualize it
   moveit::planning_interface::MoveGroupInterface::Plan plannedPath;
 
-  // plan Path
+  // plan Path --> normal path
   bool success = (m_moveGroupPtr->plan(plannedPath) ==
                   moveit::planning_interface::MoveItErrorCode::SUCCESS);
 
@@ -305,6 +305,30 @@ bool ControlArm::sendToCmdPose() {
   return success;
 }
 
+bool ControlArm::sendToCartesianCmdPose() {
+
+  // get current ee pose
+  geometry_msgs::Pose currPose = getCurrentEEPose(); 
+  // set cmd pose
+  setCmdPose(); 
+
+  moveit::planning_interface::MoveGroupInterface::Plan plannedPath; 
+
+  std::vector<geometry_msgs::Pose> cartesianWaypoints = createCartesianWaypoints(currPose, m_cmdPose,  5); 
+
+  // TODO: create Cartesian plan, use as first point currentPose 4 now, and 
+  // as end point use targetPoint
+  moveit_msgs::RobotTrajectory trajectory;
+
+  // plan Cartesian path
+  m_moveGroupPtr->computeCartesianPath(cartesianWaypoints, 0.01, 0.01, trajectory);
+
+  std::cout << trajectory; 
+
+  return true; 
+
+}
+
 bool ControlArm::sendToCmdPoses(std::vector<geometry_msgs::Pose> poses) {
   for (int i; i < poses.size(); ++i) {
     ROS_INFO_STREAM("[ControlArmNode] Visiting pose " << i);
@@ -317,21 +341,18 @@ bool ControlArm::sendToCmdPoses(std::vector<geometry_msgs::Pose> poses) {
 
 bool ControlArm::sendToDeltaCmdPose() {
 
-  // populate m_cmd pose
-  Eigen::Affine3d currentPose_ = m_moveGroupPtr->getCurrentState()->getFrameTransform(EE_LINK_NAME); 
-  geometry_msgs::Pose currentROSPose_;
-  tf::poseEigenToMsg(currentPose_, currentROSPose_);
+  geometry_msgs::Pose currPose = getCurrentEEPose(); 
 
-  ROS_INFO_STREAM("[ControlArm] currentROSPose_:" << currentROSPose_);
+  ROS_INFO_STREAM("[ControlArm] current EE Pose:" << currPose);
   geometry_msgs::Pose cmdPose;
-  cmdPose.position.x = currentROSPose_.position.x + m_cmdDeltaPose.position.x;
-  cmdPose.position.y = currentROSPose_.position.y + m_cmdDeltaPose.position.y;
-  cmdPose.position.z = currentROSPose_.position.z + m_cmdDeltaPose.position.z;
-  cmdPose.orientation.x = currentROSPose_.orientation.x + m_cmdDeltaPose.orientation.x;
-  cmdPose.orientation.y = currentROSPose_.orientation.y + m_cmdDeltaPose.orientation.y;
-  cmdPose.orientation.z = currentROSPose_.orientation.z + m_cmdDeltaPose.orientation.z;
-  cmdPose.orientation.w = currentROSPose_.orientation.w + m_cmdDeltaPose.orientation.w;
-  ROS_INFO_STREAM("[ControlArm] currentPose: " << cmdPose);
+  cmdPose.position.x = currPose.position.x + m_cmdDeltaPose.position.x;
+  cmdPose.position.y = currPose.position.y + m_cmdDeltaPose.position.y;
+  cmdPose.position.z = currPose.position.z + m_cmdDeltaPose.position.z;
+  cmdPose.orientation.x = currPose.orientation.x + m_cmdDeltaPose.orientation.x;
+  cmdPose.orientation.y = currPose.orientation.y + m_cmdDeltaPose.orientation.y;
+  cmdPose.orientation.z = currPose.orientation.z + m_cmdDeltaPose.orientation.z;
+  cmdPose.orientation.w = currPose.orientation.w + m_cmdDeltaPose.orientation.w;
+  ROS_INFO_STREAM("[ControlArm] cmd EE Pose: " << cmdPose);
 
   // set CMD pose
   m_cmdPose = cmdPose;
@@ -339,6 +360,17 @@ bool ControlArm::sendToDeltaCmdPose() {
   sendToCmdPose();
 
   return true;
+}
+
+geometry_msgs::Pose ControlArm::getCurrentEEPose() {
+  
+  // populate m_cmd pose --> TODO: Create separate method for this
+  Eigen::Affine3d currPose = m_moveGroupPtr->getCurrentState()->getFrameTransform(EE_LINK_NAME); 
+  geometry_msgs::Pose currROSPose;
+  tf::poseEigenToMsg(currPose, currROSPose);
+
+  return currROSPose;
+
 }
 
 bool ControlArm::sendToServoCmdPose(){
@@ -603,6 +635,35 @@ Eigen::MatrixXd ControlArm::getJacobian(Eigen::Vector3d refPointPosition) {
 }
 
 
+std::vector<geometry_msgs::Pose> ControlArm::createCartesianWaypoints(geometry_msgs::Pose startPose, geometry_msgs::Pose endPose, int numPoints) {
+    std::vector<geometry_msgs::Pose> result;
+    geometry_msgs::Pose pose_;
+    if (numPoints <= 1) {
+        result.push_back(startPose);
+        return result;
+    }
+    double stepX = (endPose.position.x - startPose.position.x) / (numPoints - 1);
+    double stepY = (endPose.position.y - startPose.position.y) / (numPoints - 1); 
+    double stepZ = (endPose.position.z - startPose.position.z) / (numPoints - 1); 
+    for (int i = 0; i < numPoints; ++i) {
+        pose_.position.x = startPose.position.x + stepX; 
+        pose_.position.y = startPose.position.y + stepY; 
+        pose_.position.z = startPose.position.z + stepZ; 
+        result.push_back(pose_);
+    }
+
+    // Print the values
+    std::cout << "Cartesian Waypoints values: ";
+    for (const auto& val : result) {
+        std::cout << val << " ";
+    }
+    std::cout << std::endl;
+
+    return result;
+}
+
+
+
 float ControlArm::round(float var) {
 
   float value = (int)(var * 1000 + .5);
@@ -626,9 +687,14 @@ void ControlArm::run() {
 
     if (recivPoseCmd){
 
-      if(robotState == TRAJ_CTL) 
+      if(robotState == JOINT_TRAJ_CTL) 
       {
         sendToCmdPose(); 
+      }
+
+      if (robotState == CART_TRAJ_CTL)
+      {
+        sendToCartesianCmdPose();
       }
 
       if(robotState == SERVO_CTL)
