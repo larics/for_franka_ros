@@ -115,6 +115,7 @@ private:
   // Basic robot setup
   std::string GROUP_NAME; 
   std::string EE_LINK_NAME; 
+  int NUM_CART_PTS; 
 
   // Topic names
   std::string dispTrajTopicName; 
@@ -189,6 +190,7 @@ private:
 
   // methods
   bool sendToCmdPose();
+  bool sendToCartesianCmdPose(); 
   bool sendToCmdPoses(std::vector<geometry_msgs::Pose> poses);
   bool sendToDeltaCmdPose();
   bool sendToServoCmdPose(); 
@@ -200,7 +202,9 @@ private:
   bool getIK(const geometry_msgs::Pose wantedPose, const std::size_t attempts, double timeout);
   bool getAnalyticIK(const geometry_msgs::Pose wantedPose); 
 
+  geometry_msgs::Pose getCurrentEEPose();
   Eigen::MatrixXd getJacobian(Eigen::Vector3d refPointPosition); // Can be created as void and arg passed to be changed during execution
+  std::vector<geometry_msgs::Pose> createCartesianWaypoints(geometry_msgs::Pose startPose, geometry_msgs::Pose endPose, int numPoints);
   Eigen::MatrixXd getInertiaMatrix(Eigen::Vector3d refPointPosition);
 
   // TODO: Move this to utils.cpp
@@ -210,15 +214,17 @@ private:
   enum state 
   {   
       IDLE = 0,
-      TRAJ_CTL = 1, 
-      SERVO_CTL = 2
+      JOINT_TRAJ_CTL = 1,
+      CART_TRAJ_CTL = 2,  
+      SERVO_CTL = 3
   };
 
   // stateNames 
-  const char* stateNames[3] =
+  const char* stateNames[4] =
   {
     stringify (IDLE), 
-    stringify (TRAJ_CTL), 
+    stringify (JOINT_TRAJ_CTL), 
+    stringify (CART_TRAJ_CTL),
     stringify (SERVO_CTL)
   };
 
