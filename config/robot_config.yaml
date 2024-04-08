@@ -2,6 +2,7 @@ robot:
   arm_name: panda_manipulator
   ee_link_name: panda_hand_tcp
   planning_frame: world
+  num_cart_pts: 20
 topic:
   sub:
     cmd_pose:

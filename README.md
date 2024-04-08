@@ -64,6 +64,12 @@ In order to use autocomplete and CMAKE_ARGS use following command:
 catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 ```
 
+## Useful resources
+
+* [ROS planning docs](https://ros-planning.github.io/moveit_tutorials/doc/pilz_industrial_motion_planner/pilz_industrial_motion_planner.html#sequence-of-multiple-segments)  
+
+
+
 ## TODO: 
 - [x] Create `control_arm.cpp` interface [simple moveit wrapper]
 - [x] Add instructions for building/using Dockerfile 
@@ -71,6 +77,7 @@ catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 - [ ] [py] Add [class inheritance](https://realpython.com/python-super/) and develop one Lab class that will be inherited by each instance of the lab
 - [x] [cpp] Refactor 
 - [x] [cpp] Add yaml topic name reading 
+- [x] [cpp] Added init to the Cartesian path planning [Fails often] 
 - [ ] [cpp] Add servo
 - [ ] [cpp] Add analytic IK [choose closest solution]
 - [ ] [cpp] Test joint pose commands 

@@ -115,6 +115,7 @@ private:
   // Basic robot setup
   std::string GROUP_NAME; 
   std::string EE_LINK_NAME; 
+  int NUM_CART_PTS; 
 
   // Topic names
   std::string dispTrajTopicName; 

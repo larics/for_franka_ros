@@ -68,6 +68,7 @@ void ControlArm::loadConfig() {
   // Set move group name and ee link
   GROUP_NAME = config["robot"]["arm_name"].as<std::string>(); //"panda_manipulator"; 
   EE_LINK_NAME = config["robot"]["ee_link_name"].as<std::string>(); //"panda_hand_tcp"; 
+  NUM_CART_PTS = config["robot"]["num_cartesian_points"].as<int>(); 
 
   // Topic names
   dispTrajTopicName     = config["topic"]["pub"]["display_trajectory"]["name"].as<std::string>(); 
@@ -313,20 +314,28 @@ bool ControlArm::sendToCartesianCmdPose() {
   setCmdPose(); 
 
   moveit::planning_interface::MoveGroupInterface::Plan plannedPath; 
-
-  std::vector<geometry_msgs::Pose> cartesianWaypoints = createCartesianWaypoints(currPose, m_cmdPose,  5); 
+  std::vector<geometry_msgs::Pose> cartesianWaypoints = createCartesianWaypoints(currPose, m_cmdPose, NUM_CART_PTS); 
 
   // TODO: create Cartesian plan, use as first point currentPose 4 now, and 
   // as end point use targetPoint
   moveit_msgs::RobotTrajectory trajectory;
-
+  moveit_msgs::MoveItErrorCodes errorCode; 
+  // TODO: Set as params that can be configured in YAML!
+  double jumpThr = 0.0; 
+  double eefStep = 0.02; 
   // plan Cartesian path
-  m_moveGroupPtr->computeCartesianPath(cartesianWaypoints, 0.01, 0.01, trajectory);
-
-  std::cout << trajectory; 
-
+  m_moveGroupPtr->computeCartesianPath(cartesianWaypoints, eefStep, jumpThr, trajectory, true, &errorCode);
+  //plannedPath.start_state_ = getEEState()
+  //std::cout << "MoveIt! errorCode:" << errorCode;
+  if (errorCode.val != 1){
+    ROS_WARN_ONCE("Planning Cartesian path failed!"); 
+  } 
+  else{
+    std::cout << "Trajectory!" << trajectory; 
+    plannedPath.trajectory_ = trajectory;
+    m_moveGroupPtr->asyncExecute(plannedPath);
+  }
   return true; 
-
 }
 
 bool ControlArm::sendToCmdPoses(std::vector<geometry_msgs::Pose> poses) {
@@ -645,10 +654,16 @@ std::vector<geometry_msgs::Pose> ControlArm::createCartesianWaypoints(geometry_m
     double stepX = (endPose.position.x - startPose.position.x) / (numPoints - 1);
     double stepY = (endPose.position.y - startPose.position.y) / (numPoints - 1); 
     double stepZ = (endPose.position.z - startPose.position.z) / (numPoints - 1); 
-    for (int i = 0; i < numPoints; ++i) {
-        pose_.position.x = startPose.position.x + stepX; 
-        pose_.position.y = startPose.position.y + stepY; 
-        pose_.position.z = startPose.position.z + stepZ; 
+    // Set i == 1 because start point doesn't have to be included into waypoint list 
+    // https://answers.ros.org/question/253004/moveit-problem-error-trajectory-message-contains-waypoints-that-are-not-strictly-increasing-in-time/
+    for (int i = 1; i < numPoints; ++i) {
+        pose_.position.x = startPose.position.x + i * stepX; 
+        pose_.position.y = startPose.position.y + i * stepY; 
+        pose_.position.z = startPose.position.z + i * stepZ; 
+        pose_.orientation.x = startPose.orientation.x; 
+        pose_.orientation.y = startPose.orientation.y;
+        pose_.orientation.z = startPose.orientation.z;
+        pose_.orientation.w = startPose.orientation.w; 
         result.push_back(pose_);
     }
 
@@ -661,7 +676,6 @@ std::vector<geometry_msgs::Pose> ControlArm::createCartesianWaypoints(geometry_m
 
     return result;
 }
-
 
 
 float ControlArm::round(float var) {
@@ -711,7 +725,7 @@ void ControlArm::run() {
 
     };
 
-    ROS_INFO_STREAM_THROTTLE(5, "Current arm state is: " << stateNames[robotState]); 
+    ROS_INFO_STREAM_THROTTLE(60, "Current arm state is: " << stateNames[robotState]); 
     
     // Sleep
     r.sleep();
