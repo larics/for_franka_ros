@@ -1,6 +1,6 @@
 from transforms3d.quaternions import mat2quat, quat2mat
 from geometry_msgs.msg import  Pose
-
+import numpy as np
 
 def addOffsetToPose(pose, offset): 
     HTM = pose_to_T(pose)
