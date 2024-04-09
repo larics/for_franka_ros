@@ -4,12 +4,15 @@
     <arg name="config_path" value="$(find for_franka_ros)/config/topics.yaml"/>
     
     <!-- Start real robot [In the current config this has to be started on the PC]--> 
-    <!--include file="$(find franka_ros)/franka_example_controllers/launch/franka_robot_bringup.launch"/-->
+    <!-- include file="$(find franka_ros)/franka_example_controllers/launch/franka_robot_bringup.launch"/-->
 
     <!-- Start Gazebo + MoveIt! [In the current config this has to be started on the PC]-->
     <!--include file="$(find panda_moveit_config)/launch/demo.launch">
         <arg name="transmission" default="position"/>
     </include-->
+
+    <!-- Kalipen utils-->
+    <!--node pkg="for_franka_ros" type="send_to_kalip_node" name="send_to_kalip" output="screen"/-->
 
     <!-- Start arm interface -->
     <node pkg="for_franka_ros"  type="for_franka_ros_node" name="control_arm_node" output="screen">
