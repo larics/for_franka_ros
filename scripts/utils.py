@@ -1,12 +1,10 @@
 import numpy as np
-
 from tf.transformations import quaternion_from_matrix
 from geometry_msgs.msg import  Pose, PoseStamped
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import matplotlib.pyplot as plt
 import yaml
 import rospy
-
 
 # IO utils
 def read_yaml_file(file_path):

@@ -100,3 +100,4 @@ rosservice call /control_arm_node/change_state "state: "<WANTED_STATE>""
 - [x] [cpp] IFACE test: Franka
 - [ ] [cpp] IFACE test: Kinova 
 - [ ] [docs] Add CMake stuff
+- [ ] [docs] Add lab instructions as separate subsection
