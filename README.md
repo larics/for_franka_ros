@@ -69,6 +69,20 @@ catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 * [ROS planning docs](https://ros-planning.github.io/moveit_tutorials/doc/pilz_industrial_motion_planner/pilz_industrial_motion_planner.html#sequence-of-multiple-segments)  
 * [FreeCAD docs](https://www.picuino.com/en/freecad-diferencia.html) for making obstacles for the experiments   
 
+## Robot states
+
+Current implemented robot states are: 
+ * `JOINT_TRAJ_CTL` --> OMPL MoveIt! integrated planner 
+ * `CART_TRAJ_CTL` --> Cartesian MoveIt! integrated planner
+ * `SERVO_CTL` --> Not implemented yet!
+ * `IDLE` --> If command sent, robot ignores cmd!
+
+You can change states by invoking: 
+
+```
+rosservice call /control_arm_node/change_state "state: "<WANTED_STATE>""
+```
+
 ## TODO: 
 - [x] Create `control_arm.cpp` interface [simple moveit wrapper]
 - [x] Add instructions for building/using Dockerfile 
@@ -82,4 +96,7 @@ catkin build --cmake-args -DCMAKE_C_FLAGS="-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
 - [ ] [cpp] Test joint pose commands 
 - [ ] [cpp] Change to the shorter namespace 
 - [ ] [cpp] Test with multiple robots (IFACE)
+- [x] [cpp] IFACE test: Schunk
+- [x] [cpp] IFACE test: Franka
+- [ ] [cpp] IFACE test: Kinova 
 - [ ] [docs] Add CMake stuff
