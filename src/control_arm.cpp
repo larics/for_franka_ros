@@ -63,12 +63,13 @@ void ControlArm::initRobot() {
 
 void ControlArm::loadConfig() {
 
+  // TODO: Add argument that's propagated through launch file
   YAML::Node config = YAML::LoadFile("/home/developer/catkin_ws/src/for_franka_ros/config/robot_config.yaml");
 
   // Set move group name and ee link
   GROUP_NAME = config["robot"]["arm_name"].as<std::string>(); //"panda_manipulator"; 
   EE_LINK_NAME = config["robot"]["ee_link_name"].as<std::string>(); //"panda_hand_tcp"; 
-  NUM_CART_PTS = config["robot"]["num_cartesian_points"].as<int>(); 
+  NUM_CART_PTS = config["robot"]["num_cart_pts"].as<int>(); 
 
   // Topic names
   dispTrajTopicName     = config["topic"]["pub"]["display_trajectory"]["name"].as<std::string>(); 
@@ -92,7 +93,6 @@ void ControlArm::loadConfig() {
   startJointGroupVelCtlSrvName      = config["srv"]["start_joint_group_vel_ctl"]["name"].as<std::string>(); 
   changeRobotStateSrvName           = config["srv"]["change_robot_state"]["name"].as<std::string>(); 
   ROS_INFO_NAMED("arm_ctl", "named services"); 
-
 }
 
 bool ControlArm::setMoveGroup() {
