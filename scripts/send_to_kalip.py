@@ -38,7 +38,14 @@ class sendToKalipPose():
     def kalip_cb(self, msg):
         # TODO: Add checks for the Kalipen acq position
         self.kalip_pose.position = msg.position
-        self.kalip_pose.orientation = msg.orientation
+        self.kalip_pose.orientation = msg.orientation 
+        # Add hardcoding of the orientation for the first test
+        qx = 0.68285; qy = 0.017823; qz = 0.73026; qw = 0.010886;
+        normq = np.sqrt(qx**2 + qy**2+qz**2+qw**2) 
+        self.kalip_pose.orientation.x = qx/normq
+        self.kalip_pose.orientation.y = qy/normq
+        self.kalip_pose.orientation.z = qz/normq
+        self.kalip_pose.orientation.w = qw/normq
         # Adding EE tool offset correction
         self.kalip_pose = addOffsetToPose(self.kalip_pose, -0.045)
 
