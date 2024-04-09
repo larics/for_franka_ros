@@ -21,7 +21,7 @@ class sendToKalipPose():
         self._init_pubs()
 
     def _init_pubs(self):
-        self.pose_pub = rospy.Publisher("/control_arm_node/arm/command/pose", Pose, queue_size=10, latch=True)
+        self.pose_pub = rospy.Publisher("/control_arm_node/arm/command/cmd_pose", Pose, queue_size=10, latch=True)
         rospy.loginfo("Initialized publishers!")
 
     def _init_subs(self):
@@ -36,6 +36,7 @@ class sendToKalipPose():
 
     ## Callbacks
     def kalip_cb(self, msg):
+        # TODO: Add checks for the Kalipen acq position
         self.kalip_pose.position = msg.position
         self.kalip_pose.orientation = msg.orientation
         # Adding EE tool offset correction
@@ -43,23 +44,26 @@ class sendToKalipPose():
 
     def capture_and_send_to_kalip_cb(self, msg):
         if msg.data == True:
+            rospy.loginfo("Capturing kalipen and sending arm!")
             self.cmd_pose.position = self.kalip_pose.position
             self.cmd_pose.orientation = self.kalip_pose.orientation
             self.msg_reciv = True;  
-    
+
     def capture_kalip_cb(self, msg):
         if msg.data == True:
+            rospy.loginfo("Capturing kalipen pose")
             self.cmd_pose.position = self.kalip_pose.position
             self.cmd_pose.orientation = self.kalip_pose.orientation
 
     def send_to_captured_kalip_cb(self, msg):
         if msg.data == True:
+            rospy.loginfo("Sending arm to captured Kalipen pose!")
             self.msg_reciv = True
 
-    def sendRobotToPose(self, pose, sleepT):
+    def sendRobotToPose(self, pose, sleepT=5.0):
         self.pose_pub.publish(pose)
         rospy.sleep(sleepT)
-        
+
     def run(self):
         if self.msg_reciv: 
             self.sendRobotToPose(self.cmd_pose)
