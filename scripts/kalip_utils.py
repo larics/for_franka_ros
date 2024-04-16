@@ -2,7 +2,7 @@ from transforms3d.quaternions import mat2quat, quat2mat
 from geometry_msgs.msg import  Pose
 import numpy as np
 
-def addOffsetToPose(pose, offset): 
+def addOffsetToPose(pose, y_offset, z_offset): 
     HTM = pose_to_T(pose)
         
     # Extract position and quaternion from the pose
@@ -10,7 +10,7 @@ def addOffsetToPose(pose, offset):
     R = HTM[:3, :3]  # qx, qy, qz, qw
  
     # Offset vector in local frame
-    off_loc = np.array([0, 0, offset])
+    off_loc = np.array([0, y_offset, z_offset])
  
     # Rotate the offset vector into the global frame
     off_glob = R @ (off_loc)
