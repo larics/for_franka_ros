@@ -17,6 +17,6 @@
 
     <!-- Start joy node -->
     <node name="joy" pkg="joy" type="joy_node" output="screen"/>
-    <node name="arm_joy" pkg="for_franka_ros" type="arm_joy.py" ns="arm_joy" output="screen"/>
+    <node name="arm_joy" pkg="for_franka_ros" type="arm_joy.py" output="screen"/>
 
 </launch>
