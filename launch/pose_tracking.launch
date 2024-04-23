@@ -1,0 +1,11 @@
+<launch>
+  <!-- Launch an example that sends commands via C++ API. -->
+
+  <arg name="config" default="$(find for_franka_ros)/config/franka_servo_config.yaml"/>
+
+  <node name="servo_server" pkg="moveit_servo" type="pose_tracking_example" output="screen">
+    <rosparam command="load" file="$(arg config)" />
+    <rosparam command="load" file="$(find for_franka_ros)/config/pose_tracking.yaml" />
+  </node>
+
+</launch>

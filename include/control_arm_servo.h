@@ -1,5 +1,5 @@
-#ifndef CONTROL_ARM_H
-#define CONTROL_ARM_H
+#ifndef CONTROL_ARM_SERVO_H
+#define CONTROL_ARM_SERVO_H
 
 #include <chrono>
 #include <cmath>
@@ -63,14 +63,14 @@
 
 #define stringify( name ) #name
 
-class ControlArm {
+class ControlArmServo {
 
 public:
   // Constructor
-  ControlArm(ros::NodeHandle nh);
+  ControlArmServo(ros::NodeHandle nh);
 
   // Destructor
-  ~ControlArm();
+  ~ControlArmServo();
 
   // Variables
   geometry_msgs::Point currentEEPosition;
@@ -80,6 +80,7 @@ public:
   bool setCmdPose();
   bool setMoveGroup();
   bool setPlanningScene();
+  bool setPlanningSceneMonitor(); 
 
   // Getters
   void getBasicInfo();
@@ -89,6 +90,7 @@ public:
   moveit::planning_interface::MoveGroupInterface *m_moveGroupPtr;
   const robot_state::JointModelGroup *m_jointModelGroupPtr;
   planning_scene::PlanningScene *m_planningScenePtr;
+  planning_scene_monitor::PlanningSceneMonitorPtr planningSceneMonitorPtr; 
   moveit::core::RobotStatePtr m_currentRobotStatePtr;
   robot_model_loader::RobotModelLoader m_robotModelLoader;
   Eigen::Affine3d m_endEffectorState;
@@ -250,6 +252,8 @@ private:
 
   // Vectors and arrays
   std::vector<double> m_jointPositions_;
+  std::thread move_to_pose_thread; 
+
 };
 
 class StatusMonitor
@@ -275,4 +279,4 @@ private:
   ros::Subscriber sub_;
 };
 
-#endif // CONTROL_ARM_H
+#endif // CONTROL_ARM_SERVO_H
