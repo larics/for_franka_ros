@@ -88,6 +88,8 @@ rosservice call /control_arm_node/change_state "state: "<WANTED_STATE>""
 - [x] Add instructions for building/using Dockerfile 
 - [x] Debug init HoCook 
 - [ ] [py] Add [class inheritance](https://realpython.com/python-super/) and develop one Lab class that will be inherited by each instance of the lab
+- [x] [py] Added init joy ctl for pose tracking 
+- [ ] [py] Add orientation ctl for joy 
 - [x] [cpp] Refactor 
 - [x] [cpp] Add yaml topic name reading 
 - [x] [cpp] Added init to the Cartesian path planning [Fails often] 
