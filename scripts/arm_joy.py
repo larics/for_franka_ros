@@ -15,7 +15,8 @@ class ArmJoy:
 
     def __init__(self):
         # Publisher to ardrone cmd_vel topic, can be run in namespace
-        self.armPosePub = rospy.Publisher("/control_arm_node/arm/command/cmd_pose", Pose, queue_size=1)
+        #self.armPosePub = rospy.Publisher("/control_arm_node/arm/command/cmd_pose", Pose, queue_size=1)
+        self.armPosePub = rospy.Publisher("/control_arm_node/target_pose", PoseStamped, queue_size=1)
 
         # Initialize joy and cmd_vel variables
         self.joyData = Joy()
@@ -30,12 +31,12 @@ class ArmJoy:
         self.currPoseSub = rospy.Subscriber("/control_arm_node/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
 
         # Resolution --> set to be increasable by joystick
-        self.scaleX = 0.01
-        self.scaleY = 0.01
-        self.scaleZ = 0.01
+        self.scaleX = 0.0001
+        self.scaleY = 0.0001
+        self.scaleZ = 0.0001
 
     def run(self):
-        r = rospy.Rate(50)
+        r = rospy.Rate(100)
         while not rospy.is_shutdown():
             if self.reciv_pose: 
                 self.ready = True
@@ -55,13 +56,16 @@ class ArmJoy:
             r.sleep()
 
     def create_arm_cmd(self): 
-        cmd = Pose()
+        # cmd = Pose()
+        cmd = PoseStamped()
+        cmd.header.stamp = rospy.Time.now()
+        cmd.header.frame_id = "world"
         # Translation
-        cmd.position.x = self.armPoseCurr.position.x + self.dX * self.scaleX
-        cmd.position.y = self.armPoseCurr.position.y + self.dY * self.scaleY
-        cmd.position.z = self.armPoseCurr.position.z + self.dZ * self.scaleZ
+        cmd.pose.position.x = self.armPoseCurr.position.x + self.dX * self.scaleX
+        cmd.pose.position.y = self.armPoseCurr.position.y + self.dY * self.scaleY
+        cmd.pose.position.z = self.armPoseCurr.position.z + self.dZ * self.scaleZ
         # Rotation --> postpone, test this first
-        cmd.orientation = self.armPoseCurr.orientation
+        cmd.pose.orientation = self.armPoseCurr.orientation
         return cmd
 
     def joyCallback(self, data):

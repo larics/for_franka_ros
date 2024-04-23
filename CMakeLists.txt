@@ -66,15 +66,10 @@ include_directories(
  include ${catkin_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR}
 )
 
-## Declare a C++ library
-set(PROJECT_LIB_FILES 
-    src/control_arm.cpp
-)
-
 ## TODO: Check diff between executable and lib 
 add_library(
-        ${PROJECT_NAME}_lib
-        ${PROJECT_LIB_FILES}
+        control_arm_lib
+        src/control_arm.cpp
 )
 
 add_executable(
@@ -84,8 +79,28 @@ add_executable(
 
 target_link_libraries(
     ${PROJECT_NAME}_node
-    ${PROJECT_NAME}_lib
+    control_arm_lib
     ${EIGEN3_LIBRARIES}
     ${catkin_LIBRARIES}
     yaml-cpp
 )
+
+add_library(
+        control_arm_servo_lib
+        src/control_arm_servo.cpp
+        )
+
+add_executable(
+        control_arm_servo_node
+        src/control_arm_servo_node.cpp
+)
+
+target_link_libraries(
+    control_arm_servo_node
+    control_arm_servo_lib
+    ${EIGEN3_LIBRARIES}
+    ${catkin_LIBRARIES}
+    yaml-cpp
+)
+
+
