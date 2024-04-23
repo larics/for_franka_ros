@@ -6,6 +6,11 @@ import rospy
 from geometry_msgs.msg import Twist, Pose, PoseStamped, TwistStamped
 from sensor_msgs.msg import Joy
 
+# TODO: 
+# - [] Add flag for the orientation handling 
+# - [] Add orientation control 
+# - [] Test joy control node without trajectory planning 
+
 class ArmJoy:
 
     def __init__(self):
@@ -62,7 +67,6 @@ class ArmJoy:
     def joyCallback(self, data):
         # Assign data to joy variable
         self.joyData = data
-
         # Setting joy values to be command values for bebop
         self.dX = self.joyData.axes[3]
         self.dY = self.joyData.axes[2]
