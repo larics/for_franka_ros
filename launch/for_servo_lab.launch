@@ -15,7 +15,7 @@
     <!--node pkg="for_franka_ros" type="send_to_kalip" name="send_to_kalip_node" output="screen"/!-->
 
     <!-- Start arm interface -->
-    <node pkg="for_franka_ros"  type="for_franka_ros_node" name="control_arm_servo_node" output="screen">
+    <node pkg="for_franka_ros"  type="control_arm_servo_node" name="control_arm_servo_node" output="screen">
         <param name="config_path" value="$(arg config_path)" />
         <!-- ROS params for servo ctl-->
         <rosparam command="load" file="$(find for_franka_ros)/config/franka_servo_config.yaml" />

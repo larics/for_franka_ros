@@ -16,6 +16,6 @@ x_derivative_gain: 0.0
 y_derivative_gain: 0.0
 z_derivative_gain: 0.0
 
-angular_proportional_gain: 0.5
+angular_proportional_gain: 0.0
 angular_integral_gain: 0.0
 angular_derivative_gain: 0.0

@@ -711,6 +711,7 @@ void ControlArmServo::run() {
   // Initialize moveit_servo pose_tracker
   moveit_servo::PoseTracking tracker(nH, planningSceneMonitorPtr); 
   StatusMonitor status_monitor(nH, "status");
+  bool servoEntered = false; 
   
   while (ros::ok) {
     // Get current joint position for every joint in robot arm
@@ -720,52 +721,51 @@ void ControlArmServo::run() {
     m_jointModelGroupPtr = m_currentRobotStatePtr->getJointModelGroup(GROUP_NAME);
     Eigen::Affine3d currentPose_ = m_moveGroupPtr->getCurrentState()->getFrameTransform(EE_LINK_NAME);
     geometry_msgs::Pose currentROSPose_; tf::poseEigenToMsg(currentPose_, currentROSPose_);
-    currPosePub.publish(currentROSPose_);
+    currPosePub.publish(currentROSPose_);    
 
-    if (recivPoseCmd){
-
-      if(robotState == JOINT_TRAJ_CTL) 
-      {
-        sendToCmdPose(); 
-      }
-
-      if (robotState == CART_TRAJ_CTL)
-      {
-        sendToCartesianCmdPose();
-      }
-
-      if(robotState == SERVO_CTL)
-      {         
-        
-        ROS_INFO("Entered servo!"); 
-        // Get the current EE transform
-        geometry_msgs::TransformStamped current_ee_tf;
-        tracker.getCommandFrameTransform(current_ee_tf);
-        Eigen::Vector3d lin_tol{ 0.00001, 0.00001, 0.1 };
+    if(robotState == SERVO_CTL)
+    {   
+        Eigen::Vector3d lin_tol{ 0.00001, 0.00001, 0.00001};
         double rot_tol = 0.1;
-        tracker.moveToPose(lin_tol, rot_tol, 0.1); 
-        //std::thread move_to_pose_thread(
-        //  [&tracker, &lin_tol, &rot_tol] { tracker.moveToPose(lin_tol, rot_tol, 0.1 /* target pose timeout */); });
-        //tracker.resetTargetPose();
-        //ROS_WARN("Servo control is not implemeneted yet!"); 
-      }
-
-      if(robotState == IDLE)
+        //ROS_DEBUG("Entered servo!"); 
+        if (!servoEntered)
+        {
+          // Get the current EE transform
+          geometry_msgs::TransformStamped current_ee_tf;
+          tracker.getCommandFrameTransform(current_ee_tf);
+          std::thread move_to_pose_thread([&tracker, &lin_tol, &rot_tol] { tracker.moveToPose(lin_tol, rot_tol, 0.1 /* target pose timeout */); });
+          move_to_pose_thread.detach(); 
+          servoEntered = true; 
+        }
+        else
+        {
+          tracker.moveToPose(lin_tol, rot_tol, 0.1); 
+          tracker.resetTargetPose();
+        }
+    }
+    else
+    {
+      if (servoEntered) 
       {
-        ROS_WARN("Arm is in the IDLE mode, please activate correct control mode!"); 
+        tracker.stopMotion();   
       }
+      servoEntered = false;
+    } 
 
-      recivPoseCmd = false; 
+    // TODO: Fix servo state change! --> why it falls apart after being active and then deactivation (threading problem, joint must be called )
 
-    };
+    if(robotState == IDLE)
+    {
+      ROS_WARN_STREAM_THROTTLE(1, "Arm is in the IDLE mode, please activate correct control mode!"); 
+    }
 
     ROS_INFO_STREAM_THROTTLE(60, "Current arm state is: " << stateNames[robotState]); 
     
     // Sleep
     r.sleep();
-
   }
 }
+
 
 
 // TOOD: Move to utils

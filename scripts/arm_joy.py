@@ -14,30 +14,37 @@ from sensor_msgs.msg import Joy
 class ArmJoy:
 
     def __init__(self):
-        # Publisher to ardrone cmd_vel topic, can be run in namespace
-        #self.armPosePub = rospy.Publisher("/control_arm_node/arm/command/cmd_pose", Pose, queue_size=1)
-        self.armPosePub = rospy.Publisher("/control_arm_node/target_pose", PoseStamped, queue_size=1)
 
         # Initialize joy and cmd_vel variables
         self.joyData = Joy()
-        self.armPoseCurr = Pose() # Publishing to real cmd_vel
+        self.armPoseCurr = Pose() 
         self.enable = False
         self.reciv_pose = False
         self.ready = False
+        self.servo = True
         self.topic_timeout = 1
 
         # Subscriber to joystick topic
         self.joySub = rospy.Subscriber("/joy", Joy, self.joyCallback, queue_size=1)
-        self.currPoseSub = rospy.Subscriber("/control_arm_node/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
+
+        if self.servo: 
+            servo_ns = "control_arm_servo_node"
+            self.armPosePub = rospy.Publisher(f"/{servo_ns}/target_pose", PoseStamped, queue_size=1)
+            self.currPoseSub = rospy.Subscriber(f"{servo_ns}/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
+        else: 
+            n_servo_ns = "control_arm_node"
+            self.armPosePub = rospy.Publisher(f"/{n_servo_ns}/arm/command/cmd_pose", Pose, queue_size=1)
+            self.currPoseSub = rospy.Subscriber(f"{n_servo_ns}/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
 
         # Resolution --> set to be increasable by joystick
-        self.scaleX = 0.0001
-        self.scaleY = 0.0001
-        self.scaleZ = 0.0001
+        self.scaleX = 0.004
+        self.scaleY = 0.004
+        self.scaleZ = 0.004
 
     def run(self):
         r = rospy.Rate(100)
         while not rospy.is_shutdown():
+            start_time = rospy.Time.now().to_sec()
             if self.reciv_pose: 
                 self.ready = True
                 # Simple timeout condition -> prevent from fetching wrong joy pose
@@ -45,27 +52,38 @@ class ArmJoy:
                     self.reciv_pose = False
             else: 
                 self.ready = False
+
             if self.enable and self.ready:
                 armPoseCmd = self.create_arm_cmd()
-
                 # TODO: Test for the rotation purposes
                 rospy.loginfo_throttle(1.0, "[ArmJoyCtl] On")
                 self.armPosePub.publish(armPoseCmd)
+                rospy.loginfo(f"Loop duration is: {rospy.Time.now().to_sec() - start_time}")
             else:
                 rospy.loginfo_throttle(5.0, "[ArmJoyCtl] Off")
+            
             r.sleep()
 
     def create_arm_cmd(self): 
-        # cmd = Pose()
-        cmd = PoseStamped()
-        cmd.header.stamp = rospy.Time.now()
-        cmd.header.frame_id = "world"
-        # Translation
-        cmd.pose.position.x = self.armPoseCurr.position.x + self.dX * self.scaleX
-        cmd.pose.position.y = self.armPoseCurr.position.y + self.dY * self.scaleY
-        cmd.pose.position.z = self.armPoseCurr.position.z + self.dZ * self.scaleZ
-        # Rotation --> postpone, test this first
-        cmd.pose.orientation = self.armPoseCurr.orientation
+        if self.servo: 
+            cmd = PoseStamped()
+            cmd.header.stamp = rospy.Time.now()
+            cmd.header.frame_id = "panda_link0"
+            # Translation
+            cmd.pose.position.x = self.armPoseCurr.position.x + self.dX * self.scaleX
+            cmd.pose.position.y = self.armPoseCurr.position.y + self.dY * self.scaleY
+            cmd.pose.position.z = self.armPoseCurr.position.z + self.dZ * self.scaleZ
+            # Rotation --> postpone, test this first
+            cmd.pose.orientation = self.armPoseCurr.orientation
+        else:
+            cmd = Pose()
+            # Translation
+            cmd.position.x = self.armPoseCurr.position.x + self.dX * self.scaleX
+            cmd.position.y = self.armPoseCurr.position.y + self.dY * self.scaleY
+            cmd.position.z = self.armPoseCurr.position.z + self.dZ * self.scaleZ
+            # Rotation --> postpone, test this first
+            cmd.orientation = self.armPoseCurr.orientation 
+
         return cmd
 
     def joyCallback(self, data):
