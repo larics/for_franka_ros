@@ -31,34 +31,35 @@ class ArmJoy:
             servo_ns = "control_arm_servo_node"
             self.armPosePub = rospy.Publisher(f"/{servo_ns}/target_pose", PoseStamped, queue_size=1)
             self.currPoseSub = rospy.Subscriber(f"{servo_ns}/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
+            # TODO: Add changing robot state as a service to the joystick node
+            #self.servoClient = rospy.ServiceClient("")
         else: 
             n_servo_ns = "control_arm_node"
             self.armPosePub = rospy.Publisher(f"/{n_servo_ns}/arm/command/cmd_pose", Pose, queue_size=1)
             self.currPoseSub = rospy.Subscriber(f"{n_servo_ns}/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
 
         # Resolution --> set to be increasable by joystick
-        self.scaleX = 0.004
-        self.scaleY = 0.004
-        self.scaleZ = 0.004
+        self.scaleX = 0.05
+        self.scaleY = 0.05
+        self.scaleZ = 0.05
 
     def run(self):
-        r = rospy.Rate(100)
+        r = rospy.Rate(10)
         while not rospy.is_shutdown():
-            start_time = rospy.Time.now().to_sec()
             if self.reciv_pose: 
                 self.ready = True
                 # Simple timeout condition -> prevent from fetching wrong joy pose
-                if rospy.Time.now().to_sec() - self.last_reciv_t < 1: 
+                if rospy.Time.now().to_sec() - self.last_reciv_t > 1: 
                     self.reciv_pose = False
+                    rospy.logwarn("Not recieving arm pose anymore!")
             else: 
                 self.ready = False
 
             if self.enable and self.ready:
                 armPoseCmd = self.create_arm_cmd()
                 # TODO: Test for the rotation purposes
-                rospy.loginfo_throttle(1.0, "[ArmJoyCtl] On")
+                rospy.loginfo_throttle(5.0, "[ArmJoyCtl] On")
                 self.armPosePub.publish(armPoseCmd)
-                rospy.loginfo(f"Loop duration is: {rospy.Time.now().to_sec() - start_time}")
             else:
                 rospy.loginfo_throttle(5.0, "[ArmJoyCtl] Off")
             
@@ -68,7 +69,7 @@ class ArmJoy:
         if self.servo: 
             cmd = PoseStamped()
             cmd.header.stamp = rospy.Time.now()
-            cmd.header.frame_id = "panda_link0"
+            cmd.header.frame_id = "world"
             # Translation
             cmd.pose.position.x = self.armPoseCurr.position.x + self.dX * self.scaleX
             cmd.pose.position.y = self.armPoseCurr.position.y + self.dY * self.scaleY

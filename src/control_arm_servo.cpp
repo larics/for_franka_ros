@@ -20,6 +20,9 @@ ControlArmServo::ControlArmServo(ros::NodeHandle nh) : nH(nh) {
 
   // Find out basic info
   getBasicInfo();
+
+
+
 }
 
 ControlArmServo::~ControlArmServo() {}
@@ -61,6 +64,8 @@ void ControlArmServo::initRobot() {
   applyPlanningSceneSrvCli = nHns.serviceClient<moveit_msgs::ApplyPlanningScene>("apply_planning_scene");
   applyPlanningSceneSrvCli.waitForExistence();
   ROS_INFO_NAMED("arm_ctl", "Initialized service clients. ");
+
+
 }
 
 void ControlArmServo::loadConfig() {
@@ -707,10 +712,12 @@ float ControlArmServo::round(float var) {
 
 void ControlArmServo::run() {
 
-  ros::Rate r(25);
-  // Initialize moveit_servo pose_tracker
+
   moveit_servo::PoseTracking tracker(nH, planningSceneMonitorPtr); 
-  StatusMonitor status_monitor(nH, "status");
+  StatusMonitor status_monitor(nH, "status"); 
+
+  ros::Rate r(25);
+
   bool servoEntered = false; 
   
   while (ros::ok) {
@@ -725,7 +732,7 @@ void ControlArmServo::run() {
 
     if(robotState == SERVO_CTL)
     {   
-        Eigen::Vector3d lin_tol{ 0.00001, 0.00001, 0.00001};
+        Eigen::Vector3d lin_tol{ 0.0001, 0.0001, 0.0001};
         double rot_tol = 0.1;
         //ROS_DEBUG("Entered servo!"); 
         if (!servoEntered)
@@ -733,21 +740,22 @@ void ControlArmServo::run() {
           // Get the current EE transform
           geometry_msgs::TransformStamped current_ee_tf;
           tracker.getCommandFrameTransform(current_ee_tf);
+          // Run the pose tracking in a new thread
           std::thread move_to_pose_thread([&tracker, &lin_tol, &rot_tol] { tracker.moveToPose(lin_tol, rot_tol, 0.1 /* target pose timeout */); });
           move_to_pose_thread.detach(); 
           servoEntered = true; 
         }
         else
         {
-          tracker.moveToPose(lin_tol, rot_tol, 0.1); 
-          tracker.resetTargetPose();
+          ROS_INFO_STREAM_THROTTLE(1, "Servoing..."); 
+          tracker.resetTargetPose(); 
         }
     }
     else
     {
       if (servoEntered) 
       {
-        tracker.stopMotion();   
+        tracker.stopMotion();  
       }
       servoEntered = false;
     } 
@@ -756,7 +764,7 @@ void ControlArmServo::run() {
 
     if(robotState == IDLE)
     {
-      ROS_WARN_STREAM_THROTTLE(1, "Arm is in the IDLE mode, please activate correct control mode!"); 
+      ROS_WARN_STREAM_THROTTLE(10, "Arm is in the IDLE mode, please activate correct control mode!"); 
     }
 
     ROS_INFO_STREAM_THROTTLE(60, "Current arm state is: " << stateNames[robotState]); 

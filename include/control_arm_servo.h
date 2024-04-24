@@ -63,6 +63,29 @@
 
 #define stringify( name ) #name
 
+class StatusMonitor
+{
+public:
+  StatusMonitor(ros::NodeHandle& nh, const std::string& topic)
+  {
+    sub_ = nh.subscribe(topic, 1, &StatusMonitor::statusCB, this);
+  }
+
+private:
+  void statusCB(const std_msgs::Int8ConstPtr& msg)
+  {
+    moveit_servo::StatusCode latest_status = static_cast<moveit_servo::StatusCode>(msg->data);
+    if (latest_status != status_)
+    {
+      status_ = latest_status;
+      const auto& status_str = moveit_servo::SERVO_STATUS_CODE_MAP.at(status_);
+      ROS_INFO_STREAM_NAMED("arm_ctl", "Servo status: " << status_str);
+    }
+  }
+  moveit_servo::StatusCode status_ = moveit_servo::StatusCode::INVALID;
+  ros::Subscriber sub_;
+};
+
 class ControlArmServo {
 
 public:
@@ -252,31 +275,8 @@ private:
 
   // Vectors and arrays
   std::vector<double> m_jointPositions_;
-  std::thread move_to_pose_thread; 
-
 };
 
-class StatusMonitor
-{
-public:
-  StatusMonitor(ros::NodeHandle& nh, const std::string& topic)
-  {
-    sub_ = nh.subscribe(topic, 1, &StatusMonitor::statusCB, this);
-  }
 
-private:
-  void statusCB(const std_msgs::Int8ConstPtr& msg)
-  {
-    moveit_servo::StatusCode latest_status = static_cast<moveit_servo::StatusCode>(msg->data);
-    if (latest_status != status_)
-    {
-      status_ = latest_status;
-      const auto& status_str = moveit_servo::SERVO_STATUS_CODE_MAP.at(status_);
-      ROS_INFO_STREAM_NAMED("arm_ctl", "Servo status: " << status_str);
-    }
-  }
-  moveit_servo::StatusCode status_ = moveit_servo::StatusCode::INVALID;
-  ros::Subscriber sub_;
-};
 
 #endif // CONTROL_ARM_SERVO_H

@@ -10,6 +10,7 @@ int main(int argc, char** argv) {
     ros::AsyncSpinner spinner(num_threads);
     spinner.start(); 
     controlArmServo.run(); 
+    spinner.stop(); 
 
     return 0; 
 
