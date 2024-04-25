@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # _author_: Filip Zorić; filip.zoric@fer.hr
 
-
 import rospy
 from geometry_msgs.msg import Twist, Pose, PoseStamped, TwistStamped
 from sensor_msgs.msg import Joy
@@ -9,9 +8,10 @@ from std_msgs.msg import String
 from for_franka_ros.srv import changeState
 
 # TODO: 
-# - [] Add flag for the orientation handling 
-# - [] Add orientation control 
-# - [] Test joy control node without trajectory planning 
+# - [x] Add flag for the orientation handling  
+# - [x] Test joy control node without trajectory planning
+# - [x] End effector velocity control 
+# - [x] End effector position control --> lacks support from the control_servo_arm.cpp (PID tuning*) 
 
 class ArmJoy:
 
@@ -32,6 +32,7 @@ class ArmJoy:
         self.state_cnt = 0
         self.curr_state = "IDLE"
         self.states = ["JOINT_TRAJ_CTL", "CART_TRAJ_CTL", "SERVO_CTL", "IDLE"]
+        self.EE_LINK_NAME = "panda_hand_tcp"
 
         # Subscriber to joystick topic
         self.joySub = rospy.Subscriber("/joy", Joy, self.joyCallback, queue_size=1)
@@ -50,7 +51,7 @@ class ArmJoy:
             self.currPoseSub = rospy.Subscriber(f"{n_servo_ns}/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
 
         self.linScale = 0.1; # m/s
-        self.angScale = 0.25; # rad/s
+        self.angScale = 0.5; # rad/s
 
     def run(self):
         r = rospy.Rate(5)
@@ -75,9 +76,9 @@ class ArmJoy:
                 # Use changed state to publish new joy msg
                 if self.curr_state == "SERVO_CTL":
                     #self.armPoseCmd = self.create_arm_cmd()
+                    #self.armPosePub.publish(self.armPoseCmd)
                     armVelCmd = self.create_vel_cmd()
                     self.armVelPub.publish(armVelCmd)
-                    #self.armPosePub.publish(self.armPoseCmd)
                 rospy.loginfo_throttle(5.0, "[ArmJoyCtl] On")
             else:
                 rospy.loginfo_throttle(5.0, "[ArmJoyCtl] Off")
@@ -89,7 +90,7 @@ class ArmJoy:
         if self.servo: 
             cmd = PoseStamped()
             cmd.header.stamp = rospy.Time.now()
-            cmd.header.frame_id = "panda_hand_tcp"
+            cmd.header.frame_id = self.EE_LINK_NAME
             # Translation
             cmd.pose.position.x = self.armPoseCurr.position.x + self.dX * self.linScale
             cmd.pose.position.y = self.armPoseCurr.position.y + self.dY * self.linScale
@@ -110,7 +111,7 @@ class ArmJoy:
     def create_vel_cmd(self): 
         cmd = TwistStamped()
         cmd.header.stamp = rospy.Time.now()
-        cmd.header.frame_id = "panda_hand_tcp"
+        cmd.header.frame_id = self.EE_LINK_NAME
         cmd.twist.linear.x = self.dX * self.linScale
         cmd.twist.linear.y = self.dY * self.linScale
         cmd.twist.linear.z = -self.dZ * self.linScale

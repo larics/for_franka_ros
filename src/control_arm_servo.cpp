@@ -202,7 +202,6 @@ void ControlArmServo::getArmState() {
   // (getCurrentKinematicState)
   m_currentRobotStatePtr = m_moveGroupPtr->getCurrentState();
 
-
 }
 
 void ControlArmServo::getEEState(const std::string eeLinkName) {
@@ -716,26 +715,31 @@ float ControlArmServo::round(float var) {
 }
 
 void ControlArmServo::run() {
-
-
   //moveit_servo::PoseTracking tracker(nH, planningSceneMonitorPtr); 
   
   moveit_servo::Servo servo(nH, planningSceneMonitorPtr);  
-  StatusMonitor status_monitor(nH, "status"); 
-
+  StatusMonitor status_monitor(nH, "status");
   ros::Rate r(25);
 
+  // This should be moved somewhere else!
   bool servoEntered = false; 
   double exitTime, enterTime; 
+  double cR, cP, cY, lR, lP, lY; 
   
   while (ros::ok) {
     // Get current joint position for every joint in robot arm
     getArmState();
-    // Get all joints
+
+    // Get all joints --> TODO: Move this to the arm state
     m_jointModelGroupPtr = m_currentRobotStatePtr->getJointModelGroup(GROUP_NAME);
     Eigen::Affine3d currentPose_ = m_moveGroupPtr->getCurrentState()->getFrameTransform(EE_LINK_NAME);
-    tf::poseEigenToMsg(currentPose_, m_currROSPose);
+    tf::poseEigenToMsg(currentPose_, m_currROSPose); 
+    // Publish current pose
     currPosePub.publish(m_currROSPose);    
+    tf::Quaternion q_(m_currROSPose.orientation.x, m_currROSPose.orientation.y, m_currROSPose.orientation.z, m_currROSPose.orientation.w);
+    tf::Matrix3x3 m(q_);
+    m.getRPY(cR, cP, cY);
+
     enterTime = ros::Time::now().toSec();
     // TODO: make this better, a lot better
     if (!started){
@@ -743,11 +747,17 @@ void ControlArmServo::run() {
       //getEEVel(m_currRosPose, m_lastMeasPose)
     }
     else{
-      double dt = enterTime - exitTime; 
+      double dt = enterTime - exitTime;
       // TODO: Move this to function! [getArmState]
+      // Linear EE velocity m/s
       m_currROSVel.linear.x = (m_currROSPose.position.x - m_lastMeasPose.position.x)/dt; 
       m_currROSVel.linear.y = (m_currROSPose.position.y - m_lastMeasPose.position.y)/dt; 
-      m_currROSVel.linear.z = (m_currROSPose.position.z - m_lastMeasPose.position.z)/dt; 
+      m_currROSVel.linear.z = (m_currROSPose.position.z - m_lastMeasPose.position.z)/dt;
+      // Angular EE velocity rad/s
+      m_currROSVel.angular.x = (lR - cR)/dt; 
+      m_currROSVel.angular.y = (lP - cP)/dt; 
+      m_currROSVel.angular.z = (lY - cY)/dt;
+      // TODO: Quaternion conversion
       currVelPub.publish(m_currROSVel); 
     }
     
@@ -766,7 +776,6 @@ void ControlArmServo::run() {
       }
     } 
 
-    // TODO: Fix servo state change! --> why it falls apart after being active and then deactivation (threading problem, joint must be called )
 
     if(robotState == IDLE)
     {
@@ -776,7 +785,9 @@ void ControlArmServo::run() {
     ROS_INFO_STREAM_THROTTLE(60, "Current arm state is: " << stateNames[robotState]); 
     
     // TODO: Move this to function [getArmState]; 
-    m_lastMeasPose = m_currROSPose; 
+    m_lastMeasPose = m_currROSPose;
+    // Get orientations 
+    lR = cR; lP = cP; lY = cY; 
     exitTime = ros::Time::now().toSec();
 
     // Sleep
