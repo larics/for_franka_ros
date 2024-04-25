@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # _author_: Filip Zorić; filip.zoric@fer.hr
 
-
 import rospy
 from geometry_msgs.msg import Twist, Pose, PoseStamped, TwistStamped
 from sensor_msgs.msg import Joy
@@ -9,9 +8,10 @@ from std_msgs.msg import String
 from for_franka_ros.srv import changeState
 
 # TODO: 
-# - [] Add flag for the orientation handling 
-# - [] Add orientation control 
-# - [] Test joy control node without trajectory planning 
+# - [x] Add flag for the orientation handling  
+# - [x] Test joy control node without trajectory planning
+# - [x] End effector velocity control 
+# - [x] End effector position control --> lacks support from the control_servo_arm.cpp (PID tuning*) 
 
 class ArmJoy:
 
@@ -32,13 +32,16 @@ class ArmJoy:
         self.state_cnt = 0
         self.curr_state = "IDLE"
         self.states = ["JOINT_TRAJ_CTL", "CART_TRAJ_CTL", "SERVO_CTL", "IDLE"]
+        self.EE_LINK_NAME = "panda_hand_tcp"
 
         # Subscriber to joystick topic
         self.joySub = rospy.Subscriber("/joy", Joy, self.joyCallback, queue_size=1)
 
+        # TODO: merge those two when required
         if self.servo: 
             servo_ns = "control_arm_servo_node"
             self.armPosePub = rospy.Publisher(f"/{servo_ns}/target_pose", PoseStamped, queue_size=1)
+            self.armVelPub = rospy.Publisher(f"/{servo_ns}/delta_twist_cmds", TwistStamped, queue_size=1)
             self.currPoseSub = rospy.Subscriber(f"{servo_ns}/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
             # TODO: Add changing robot state as a service to the joystick node
             self.stateProxy = rospy.ServiceProxy(f"{servo_ns}/change_state", changeState)
@@ -47,10 +50,8 @@ class ArmJoy:
             self.armPosePub = rospy.Publisher(f"/{n_servo_ns}/arm/command/cmd_pose", Pose, queue_size=1)
             self.currPoseSub = rospy.Subscriber(f"{n_servo_ns}/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
 
-        # Resolution --> set to be increasable by joystick
-        self.scaleX = 0.1
-        self.scaleY = 0.1
-        self.scaleZ = 0.01
+        self.linScale = 0.1; # m/s
+        self.angScale = 0.5; # rad/s
 
     def run(self):
         r = rospy.Rate(5)
@@ -69,13 +70,15 @@ class ArmJoy:
                 if self.change_state:
                     # Change state
                     resp = self.stateProxy(str(self.states[self.state_cnt]))
-                    self.armPoseCmd = self.create_arm_cmd()
+                    #self.armPoseCmd = self.create_arm_cmd()
                     self.change_state = False
                     self.curr_state = self.states[self.state_cnt] 
                 # Use changed state to publish new joy msg
                 if self.curr_state == "SERVO_CTL":
-                    self.armPoseCmd = self.create_arm_cmd(self.armPoseCmd)
-                    self.armPosePub.publish(self.armPoseCmd)
+                    #self.armPoseCmd = self.create_arm_cmd()
+                    #self.armPosePub.publish(self.armPoseCmd)
+                    armVelCmd = self.create_vel_cmd()
+                    self.armVelPub.publish(armVelCmd)
                 rospy.loginfo_throttle(5.0, "[ArmJoyCtl] On")
             else:
                 rospy.loginfo_throttle(5.0, "[ArmJoyCtl] Off")
@@ -87,22 +90,35 @@ class ArmJoy:
         if self.servo: 
             cmd = PoseStamped()
             cmd.header.stamp = rospy.Time.now()
-            cmd.header.frame_id = "panda_hand_tcp"
+            cmd.header.frame_id = self.EE_LINK_NAME
             # Translation
-            cmd.pose.position.x = self.armPoseCurr.position.x + self.dX * self.scaleX
-            cmd.pose.position.y = self.armPoseCurr.position.y + self.dY * self.scaleY
-            cmd.pose.position.z = self.armPoseCurr.position.z + self.dZ * self.scaleZ
+            cmd.pose.position.x = self.armPoseCurr.position.x + self.dX * self.linScale
+            cmd.pose.position.y = self.armPoseCurr.position.y + self.dY * self.linScale
+            cmd.pose.position.z = self.armPoseCurr.position.z + self.dZ * self.linScale
             # Rotation --> postpone, test this first
             cmd.pose.orientation = self.armPoseCurr.orientation
         else:
             cmd = Pose()
             # Translation
-            cmd.position.x = self.armPoseCurr.position.x + self.dX * self.scaleX
-            cmd.position.y = self.armPoseCurr.position.y + self.dY * self.scaleY
-            cmd.position.z = self.armPoseCurr.position.z + self.dZ * self.scaleZ
+            cmd.position.x = self.armPoseCurr.position.x + self.dX * self.linScale
+            cmd.position.y = self.armPoseCurr.position.y + self.dY * self.linScale
+            cmd.position.z = self.armPoseCurr.position.z + self.dZ * self.linScale
             # Rotation --> postpone, test this first
             cmd.orientation = self.armPoseCurr.orientation 
 
+        return cmd
+    
+    def create_vel_cmd(self): 
+        cmd = TwistStamped()
+        cmd.header.stamp = rospy.Time.now()
+        cmd.header.frame_id = self.EE_LINK_NAME
+        cmd.twist.linear.x = self.dX * self.linScale
+        cmd.twist.linear.y = self.dY * self.linScale
+        cmd.twist.linear.z = -self.dZ * self.linScale
+        cmd.twist.angular.x = self.dRoll * self.angScale
+        cmd.twist.angular.y = self.dPitch * self.angScale
+        cmd.twist.angular.z = self.dYaw * self.angScale 
+        
         return cmd
 
     def joyCallback(self, data):
@@ -112,7 +128,10 @@ class ArmJoy:
         self.dX = self.joyData.axes[3]
         self.dY = self.joyData.axes[2]
         self.dZ = self.joyData.axes[1]
+        self.dPitch = self.joyData.axes[-1]
+        self.dRoll = self.joyData.axes[-2]
         self.dYaw = self.joyData.axes[0]
+        
         # Removed from condition
         if self.joyData.buttons[7] == 1: 
             self.enable = True
@@ -121,7 +140,7 @@ class ArmJoy:
             self.enable = False
             rospy.loginfo("Joystick is disabled!")
 
-        if self.joyData.axes[-1] == 1:
+        if self.joyData.buttons[4] == 1:
             if self.state_cnt < 3: 
                 self.state_cnt += 1
             else: 
