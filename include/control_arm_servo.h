@@ -61,33 +61,9 @@
 #include "for_franka_ros/changeStateRequest.h"
 #include "for_franka_ros/changeStateResponse.h"
 
+#include "status_monitor.h"
+
 #define stringify( name ) #name
-
-
-// TODO: Break down to smaller pieces!
-
-class StatusMonitor
-{
-public:
-  StatusMonitor(ros::NodeHandle& nh, const std::string& topic)
-  {
-    sub_ = nh.subscribe(topic, 1, &StatusMonitor::statusCB, this);
-  }
-
-private:
-  void statusCB(const std_msgs::Int8ConstPtr& msg)
-  {
-    moveit_servo::StatusCode latest_status = static_cast<moveit_servo::StatusCode>(msg->data);
-    if (latest_status != status_)
-    {
-      status_ = latest_status;
-      const auto& status_str = moveit_servo::SERVO_STATUS_CODE_MAP.at(status_);
-      ROS_INFO_STREAM_NAMED("arm_ctl", "Servo status: " << status_str);
-    }
-  }
-  moveit_servo::StatusCode status_ = moveit_servo::StatusCode::INVALID;
-  ros::Subscriber sub_;
-};
 
 class ControlArmServo {
 
@@ -219,7 +195,6 @@ private:
   bool getIkSrvCb(for_franka_ros::getIkRequest &req, for_franka_ros::getIkResponse &res); 
   bool setStateCb(for_franka_ros::changeStateRequest &req, for_franka_ros::changeStateResponse &res);
 
-
   // methods
   bool sendToCmdPose();
   bool sendToCartesianCmdPose(); 
@@ -229,6 +204,9 @@ private:
   void addCollisionObject(moveit_msgs::PlanningScene &planningScene);
   void getArmState();
   void getEEState(const std::string eeLinkName);
+  void pubEEPose(); 
+  void pubEEVel(double dt); 
+  void getEERPY(double &roll, double &pitch, double &yaw); 
   void getJointPositions(const std::vector<std::string> &jointNames, std::vector<double> &jointGroupPositions);
   void getRunningControllers(std::vector<std::string> &runningControllerNames);
   bool getIK(const geometry_msgs::Pose wantedPose, const std::size_t attempts, double timeout);
@@ -265,8 +243,9 @@ private:
     // DisplayTrajectory
   moveit_msgs::DisplayTrajectory displayTraj;
 
-  // Private variables
-  // It is not neccessary to have distinciton between private and public variable naming for now
+  // EE angles
+  double currRoll, currPitch, currYaw, lastRoll, lastPitch, lastYaw; 
+
   int sleepMs_;
   bool enableVisualization_;
   bool recivPoseCmd = false; 
