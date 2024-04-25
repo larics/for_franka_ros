@@ -39,6 +39,7 @@ void ControlArmServo::initRobot() {
 
   dispTrajPub               = nH.advertise<moveit_msgs::DisplayTrajectory>(dispTrajTopicName, dispTrajQSize);
   currPosePub               = nH.advertise<geometry_msgs::Pose>(currPoseTopicName, currPoseQSize);
+  currVelPub                = nH.advertise<geometry_msgs::Twist>(currVelTopicName, currVelQSize); 
   cmdQ1Pub                  = nHns.advertise<std_msgs::Float64>(std::string("franka_ph/joint_1_position_controller/command"), 1);
   cmdJointGroupPositionPub  = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_position_controller/command"), 1);
   cmdJointGroupVelocityPub  = nHns.advertise<std_msgs::Float64MultiArray>(std::string("franka_ph/joint_group_velocity_controller/command"), 1);
@@ -80,13 +81,15 @@ void ControlArmServo::loadConfig() {
 
   // Topic names
   dispTrajTopicName     = config["topic"]["pub"]["display_trajectory"]["name"].as<std::string>(); 
-  currPoseTopicName     = config["topic"]["pub"]["current_pose"]["name"].as<std::string>(); 
+  currPoseTopicName     = config["topic"]["pub"]["current_pose"]["name"].as<std::string>();
+  currVelTopicName      = config["topic"]["pub"]["current_vel"]["name"].as<std::string>();  
   cmdPoseTopicName      = config["topic"]["sub"]["cmd_pose"]["name"].as<std::string>(); 
   cmdDeltaPoseTopicName = config["topic"]["sub"]["cmd_delta_pose"]["name"].as<std::string>(); 
 
   // Q Sizes
   dispTrajQSize     = config["topic"]["pub"]["display_trajectory"]["queue"].as<int>(); 
   currPoseQSize     = config["topic"]["pub"]["current_pose"]["queue"].as<int>(); 
+  currVelQSize      = config["topic"]["pub"]["current_vel"]["queue"].as<int>(); 
   cmdPoseQSize      = config["topic"]["sub"]["cmd_pose"]["queue"].as<int>(); 
   cmdDeltaPoseQSize = config["topic"]["sub"]["cmd_delta_pose"]["queue"].as<int>(); 
   ROS_INFO_NAMED("arm_ctl", "setted queue sizes!");
@@ -198,6 +201,8 @@ void ControlArmServo::getArmState() {
   // method is more like refresh current kinematic state
   // (getCurrentKinematicState)
   m_currentRobotStatePtr = m_moveGroupPtr->getCurrentState();
+
+
 }
 
 void ControlArmServo::getEEState(const std::string eeLinkName) {
@@ -713,51 +718,52 @@ float ControlArmServo::round(float var) {
 void ControlArmServo::run() {
 
 
-  moveit_servo::PoseTracking tracker(nH, planningSceneMonitorPtr); 
+  //moveit_servo::PoseTracking tracker(nH, planningSceneMonitorPtr); 
+  
+  moveit_servo::Servo servo(nH, planningSceneMonitorPtr);  
   StatusMonitor status_monitor(nH, "status"); 
 
   ros::Rate r(25);
 
   bool servoEntered = false; 
+  double exitTime, enterTime; 
   
   while (ros::ok) {
     // Get current joint position for every joint in robot arm
     getArmState();
-
     // Get all joints
     m_jointModelGroupPtr = m_currentRobotStatePtr->getJointModelGroup(GROUP_NAME);
     Eigen::Affine3d currentPose_ = m_moveGroupPtr->getCurrentState()->getFrameTransform(EE_LINK_NAME);
-    geometry_msgs::Pose currentROSPose_; tf::poseEigenToMsg(currentPose_, currentROSPose_);
-    currPosePub.publish(currentROSPose_);    
-
+    tf::poseEigenToMsg(currentPose_, m_currROSPose);
+    currPosePub.publish(m_currROSPose);    
+    enterTime = ros::Time::now().toSec();
+    // TODO: make this better, a lot better
+    if (!started){
+      started = true; 
+      //getEEVel(m_currRosPose, m_lastMeasPose)
+    }
+    else{
+      double dt = enterTime - exitTime; 
+      // TODO: Move this to function! [getArmState]
+      m_currROSVel.linear.x = (m_currROSPose.position.x - m_lastMeasPose.position.x)/dt; 
+      m_currROSVel.linear.y = (m_currROSPose.position.y - m_lastMeasPose.position.y)/dt; 
+      m_currROSVel.linear.z = (m_currROSPose.position.z - m_lastMeasPose.position.z)/dt; 
+      currVelPub.publish(m_currROSVel); 
+    }
+    
     if(robotState == SERVO_CTL)
     {   
-        Eigen::Vector3d lin_tol{ 0.0001, 0.0001, 0.0001};
-        double rot_tol = 0.1;
-        //ROS_DEBUG("Entered servo!"); 
-        if (!servoEntered)
-        {
-          // Get the current EE transform
-          geometry_msgs::TransformStamped current_ee_tf;
-          tracker.getCommandFrameTransform(current_ee_tf);
-          // Run the pose tracking in a new thread
-          std::thread move_to_pose_thread([&tracker, &lin_tol, &rot_tol] { tracker.moveToPose(lin_tol, rot_tol, 0.1 /* target pose timeout */); });
-          move_to_pose_thread.detach(); 
-          servoEntered = true; 
-        }
-        else
-        {
-          ROS_INFO_STREAM_THROTTLE(1, "Servoing..."); 
-          tracker.resetTargetPose(); 
-        }
+        servoEntered = true; 
+        servo.start(); 
+        ROS_INFO_STREAM_THROTTLE(1, "Servoing..."); 
     }
     else
     {
       if (servoEntered) 
       {
-        tracker.stopMotion();  
+        servo.setPaused(servoEntered); 
+        servoEntered = false;
       }
-      servoEntered = false;
     } 
 
     // TODO: Fix servo state change! --> why it falls apart after being active and then deactivation (threading problem, joint must be called )
@@ -769,8 +775,14 @@ void ControlArmServo::run() {
 
     ROS_INFO_STREAM_THROTTLE(60, "Current arm state is: " << stateNames[robotState]); 
     
+    // TODO: Move this to function [getArmState]; 
+    m_lastMeasPose = m_currROSPose; 
+    exitTime = ros::Time::now().toSec();
+
     // Sleep
     r.sleep();
+
+
   }
 }
 

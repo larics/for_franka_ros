@@ -36,9 +36,11 @@ class ArmJoy:
         # Subscriber to joystick topic
         self.joySub = rospy.Subscriber("/joy", Joy, self.joyCallback, queue_size=1)
 
+        # TODO: merge those two when required
         if self.servo: 
             servo_ns = "control_arm_servo_node"
             self.armPosePub = rospy.Publisher(f"/{servo_ns}/target_pose", PoseStamped, queue_size=1)
+            self.armVelPub = rospy.Publisher(f"/{servo_ns}/delta_twist_cmds", TwistStamped, queue_size=1)
             self.currPoseSub = rospy.Subscriber(f"{servo_ns}/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
             # TODO: Add changing robot state as a service to the joystick node
             self.stateProxy = rospy.ServiceProxy(f"{servo_ns}/change_state", changeState)
@@ -48,9 +50,9 @@ class ArmJoy:
             self.currPoseSub = rospy.Subscriber(f"{n_servo_ns}/arm/state/current_pose", Pose, self.poseCallback, queue_size=1)
 
         # Resolution --> set to be increasable by joystick
-        self.scaleX = 0.1
-        self.scaleY = 0.1
-        self.scaleZ = 0.01
+        self.scaleX = 0.01 # m/s
+        self.scaleY = 0.01 # m/s
+        self.scaleZ = 0.01 # m/s
 
     def run(self):
         r = rospy.Rate(5)
@@ -74,8 +76,10 @@ class ArmJoy:
                     self.curr_state = self.states[self.state_cnt] 
                 # Use changed state to publish new joy msg
                 if self.curr_state == "SERVO_CTL":
-                    self.armPoseCmd = self.create_arm_cmd(self.armPoseCmd)
-                    self.armPosePub.publish(self.armPoseCmd)
+                    self.armPoseCmd = self.create_arm_cmd()
+                    armVelCmd = self.create_vel_cmd()
+                    self.armVelPub.publish(armVelCmd)
+                    #self.armPosePub.publish(self.armPoseCmd)
                 rospy.loginfo_throttle(5.0, "[ArmJoyCtl] On")
             else:
                 rospy.loginfo_throttle(5.0, "[ArmJoyCtl] Off")
@@ -103,6 +107,15 @@ class ArmJoy:
             # Rotation --> postpone, test this first
             cmd.orientation = self.armPoseCurr.orientation 
 
+        return cmd
+    
+    def create_vel_cmd(self): 
+        cmd = TwistStamped()
+        cmd.header.stamp = rospy.Time.now()
+        cmd.header.frame_id = "panda_hand_tcp"
+        cmd.twist.linear.x = self.dX * self.scaleX
+        cmd.twist.linear.y = self.dY * self.scaleY
+        cmd.twist.linear.z = self.dZ * self.scaleZ
         return cmd
 
     def joyCallback(self, data):

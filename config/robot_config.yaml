@@ -21,6 +21,9 @@ topic:
     current_pose:
       name: arm/state/current_pose
       queue: 1
+    current_vel: 
+      name: arm/state/current_velocity
+      queue: 1
 srv: 
   disable_collision: 
     name: /move_group/disable_collision

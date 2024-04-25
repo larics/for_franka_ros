@@ -63,6 +63,9 @@
 
 #define stringify( name ) #name
 
+
+// TODO: Break down to smaller pieces!
+
 class StatusMonitor
 {
 public:
@@ -146,6 +149,7 @@ private:
   // Topic names
   std::string dispTrajTopicName; 
   std::string currPoseTopicName;
+  std::string currVelTopicName; 
   std::string cmdPoseTopicName;
   std::string cmdToolOrientTopicName;
   std::string cmdDeltaPoseTopicName;
@@ -163,6 +167,7 @@ private:
   // Topic queue sizes
   int dispTrajQSize;
   int currPoseQSize;
+  int currVelQSize; 
   int cmdPoseQSize;
   int cmdToolOrientQSize;
   int cmdDeltaPoseQSize;
@@ -170,6 +175,7 @@ private:
   // ROS Publishers
   ros::Publisher dispTrajPub;
   ros::Publisher currPosePub;
+  ros::Publisher currVelPub; 
   ros::Publisher cmdQ1Pub;
   ros::Publisher cmdJointGroupPositionPub;
   ros::Publisher cmdJointGroupVelocityPub;
@@ -268,10 +274,15 @@ private:
   bool planSceneInit = false;
   bool planSceneMonitorInit = false; 
   bool blockingMovement = true;
+  bool started = false; 
   std::string endEffectorLinkName;
   geometry_msgs::Pose m_cmdPose;
   geometry_msgs::Pose m_lastCmdPose;
+  geometry_msgs::Pose m_lastMeasPose; 
   geometry_msgs::Pose m_cmdDeltaPose;
+  geometry_msgs::Pose m_currROSPose; 
+  geometry_msgs::Pose m_lastROSPose; 
+  geometry_msgs::Twist m_currROSVel; 
 
   // Vectors and arrays
   std::vector<double> m_jointPositions_;
