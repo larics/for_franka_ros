@@ -124,7 +124,6 @@ bool ControlArm::setPlanningScene() {
   return true;
 }
 
-
 void ControlArm::getBasicInfo() {
 
   if (moveGroupInit) {

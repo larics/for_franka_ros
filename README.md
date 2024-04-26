@@ -46,6 +46,18 @@ echo "export ROS_MASTER_URI=http://192.168.150.250:11311" >> ~/.bashrc
 echo "export ROS_HOSTNAME=<your_ip>" >> ~/.bashrc    
 ```
 
+Robot PC: 
+
+On the robot PC, it is crucial to activate: `FRANKA_FCI` from the Linux with realtime capabilities. 
+
+Connect your PC and the robot PC on the same network. 
+
+On the robot PC run following: 
+```
+roslaunch franka_example_controllers franka_robot_bringup.launch
+roslaunch panda_moveit_config demo.launch 
+```
+
 After that you can run your or_lab3 script with: 
 
 ```
