@@ -749,7 +749,7 @@ void ControlArmServo::run() {
   
   moveit_servo::Servo servo(nH, planningSceneMonitorPtr);  
   StatusMonitor status_monitor(nH, "status");
-  ros::Rate r(25);
+  ros::Rate r(100);
 
   // This should be moved somewhere else!
   bool servoEntered = false; 
