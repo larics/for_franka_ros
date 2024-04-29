@@ -54,7 +54,7 @@ class ArmJoy:
         self.angScale = 0.5; # rad/s
 
     def run(self):
-        r = rospy.Rate(50)
+        r = rospy.Rate(100)
         while not rospy.is_shutdown():
             if self.reciv_pose: 
                 self.ready = True

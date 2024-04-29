@@ -14,8 +14,8 @@ scale:
 low_pass_filter_coeff: 2.  # Larger --> trust the filtered data more, trust the measurements less.
 
 ## Properties of outgoing commands
-publish_period: 0.0001  # 1/Nominal publish rate [seconds]
-low_latency_mode: false  # Set this to true to publish as soon as an incoming Twist command is received (publish_period is ignored)
+publish_period: 0.01  # 1/Nominal publish rate [seconds]
+low_latency_mode: true  # Set this to true to publish as soon as an incoming Twist command is received (publish_period is ignored)
 
 # What type of topic does your robot driver expect?
 # Currently supported are std_msgs/Float64MultiArray (for ros_control JointGroupVelocityController or JointGroupPositionController)
@@ -25,7 +25,7 @@ command_out_type: trajectory_msgs/JointTrajectory
 # What to publish? Can save some bandwidth as most robots only require positions or velocities
 publish_joint_positions: true
 publish_joint_velocities: false
-publish_joint_accelerations: false
+publish_joint_accelerations: true
 
 ## MoveIt properties
 move_group_name:  panda_manipulator  # Often 'manipulator' or 'arm'
