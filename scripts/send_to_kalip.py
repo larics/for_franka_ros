@@ -5,12 +5,13 @@ import copy
 import math
 import numpy as np
 import csv
-
+from numpy import linalg
 from geometry_msgs.msg import Pose
 from tf import TransformListener, LookupException, ConnectivityException, ExtrapolationException
 from std_msgs.msg import Bool
 from kalip_utils import *
 from sensor_msgs.msg import Joy, PointCloud
+
 
 
 def euclidean_distance_between_poses(pose1 : Pose, pose2: Pose):
@@ -38,9 +39,26 @@ class sendToKalipPose():
         self._init_subs()
         self._init_pubs()
         self.click = False
-        self.csv_file = open('marked_and_robot_positions', 'w')  # Open CSV file in write mode
-        self.csv_writer = csv.writer(self.csv_file)
-        self.csv_writer.writerow(['x_marked', 'y_marked', 'z_marked', 'x_robot','y_robot','z_robot'])  # Write header
+        #CSV WRITER FOR MARKED AND ACHIEVED ROBOT POSITIONS (Kalipen position, Robot,position)
+        self.csv_file1 = open('marked_and_robot_positions.csv', 'w')  # Open CSV file in write mode
+        self.csv_writer1 = csv.writer(self.csv_file1)
+        self.csv_writer1.writerow(['x_marked', 'y_marked', 'z_marked', 'x_robot','y_robot','z_robot'])  # Write header
+        #CSV WRITER FOR MARKING POSITIONS WITH ROBOT
+        self.csv_file2 = open('robot_end_effector_positions_of_peak.csv', 'w')  # Open CSV file in write mode
+        self.csv_writer2 = csv.writer(self.csv_file2)
+        self.csv_writer2.writerow(['x_EF_robot','y_EF_robot','z_EF_robot'])  # Write header
+        #CSV WRITER FOR ROBOT EF POSE
+        self.csv_file3 = open('robot_EF_poses.csv', 'w')  # Open CSV file in write mode
+        self.csv_writer3 = csv.writer(self.csv_file3)
+        self.csv_writer3.writerow(['x', 'y', 'z', 'qx','qy','qz','qw'])  # Write header
+        #Add the new tool with peak
+        
+        self.T_EF_PEAK = np.eye(4)
+        p_EF_PEAK = [-0.00261583,  0.00204851,  0.06328093]
+        #T_EF_PEAK[0,3] = p_EF_PEAK[0]
+        #T_EF_PEAK[1,3] = p_EF_PEAK[1]
+        self.T_EF_PEAK[2,3] = p_EF_PEAK[2]
+        
 
     def _init_pubs(self):
         self.pose_pub = rospy.Publisher("/control_arm_node/arm/command/cmd_pose", Pose, queue_size=10, latch=True)
@@ -74,6 +92,18 @@ class sendToKalipPose():
             rospy.loginfo("Sending arm through list of poses")
             self.msg_reciv_list_pose = True
             
+        if (click.buttons[3] == 1):
+            rospy.loginfo("Capturing Robot END EFFECTOR Position")
+
+            T_BASE_EF = pose_to_T(self.current_robot_pose)
+            
+            T_BASE_PEAK = T_BASE_EF @  self.T_EF_PEAK
+            
+            self.csv_writer2.writerow([T_BASE_PEAK[0,3], T_BASE_PEAK[1,3], T_BASE_PEAK[2,3]])
+            self.csv_writer3.writerow([self.current_robot_pose.position.x, self.current_robot_pose.position.y, self.current_robot_pose.position.z,
+                                       self.current_robot_pose.orientation.x,self.current_robot_pose.orientation.y,
+                                       self.current_robot_pose.orientation.z,self.current_robot_pose.orientation.w])
+
     def kalip_cb(self, msg):
         # TODO: Add checks for the Kalipen acq position
         self.kalip_pose.position = msg.position
@@ -86,8 +116,10 @@ class sendToKalipPose():
         #self.kalip_pose.orientation.z = qz/normq
         #self.kalip_pose.orientation.w = qw/normq
         # Adding EE tool offset correction
-        self.kalip_pose_off = addOffsetToPose(self.kalip_pose, 0.0, -0.009)
-
+        #self.kalip_pose_off = addOffsetToPose(self.kalip_pose, 0.0, -0.009)
+        
+        self.kalip_pose_off = T_to_pose(pose_to_T(self.kalip_pose) @ linalg.inv(self.T_EF_PEAK) )
+        
     def capture_and_send_to_kalip_cb(self, msg):
         if msg.data == True:
             rospy.loginfo("Capturing kalipen and sending arm!")
@@ -140,7 +172,8 @@ class sendToKalipPose():
                 rospy.loginfo("Distance: {}".format(dist)) 
                 self.pose_sent = False
                 # TODO: Saved achieved position list
-                self.csv_writer.writerow([self.cmd_pose_list[self.cnt].position.x,self.cmd_pose_list[self.cnt].position.y, self.cmd_pose_list[self.cnt].position.z, self.current_robot_pose.position.x, self.current_robot_pose.position.y, self.current_robot_pose.position.z])
+                self.csv_writer1.writerow([self.cmd_pose_list[self.cnt].position.x,self.cmd_pose_list[self.cnt].position.y, self.cmd_pose_list[self.cnt].position.z, 
+                                           self.current_robot_pose.position.x, self.current_robot_pose.position.y, self.current_robot_pose.position.z])
 
                 self.achieved_robot_position_list.append(self.current_robot_pose.position)
                 self.cnt = len(self.achieved_robot_position_list)
