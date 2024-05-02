@@ -30,6 +30,15 @@ class sendToKalipPose():
         self.msg_reciv_one_pose = False
         self.msg_reciv_list_pose = False
         self.pose_sent = False
+        #Peak tool on top of franka hand
+        self.T_EF_PEAK = np.eye(4)
+        p_EF_PEAK = [-0.0009063,  -0.00021616,  0.0637572]
+        #T_EF_PEAK[0,3] = p_EF_PEAK[0]
+        #T_EF_PEAK[1,3] = p_EF_PEAK[1]
+        self.T_EF_PEAK[2,3] = p_EF_PEAK[2]
+        
+        self.kalip_pose_off = Pose()
+        
         # Counter for sending it to list 
         self.cnt = 0; 
         self.rate = 0.2; 
@@ -51,13 +60,18 @@ class sendToKalipPose():
         self.csv_file3 = open('robot_EF_poses.csv', 'w')  # Open CSV file in write mode
         self.csv_writer3 = csv.writer(self.csv_file3)
         self.csv_writer3.writerow(['x', 'y', 'z', 'qx','qy','qz','qw'])  # Write header
-        #Add the new tool with peak
+        #CSV WRITER FOR Peak Position and Kalipen Position
+        self.csv_file4 = open('Kalipen_positions_and_robot_peak_position.csv', 'w')  # Open CSV file in write mode
+        self.csv_writer4 = csv.writer(self.csv_file4)
+        self.csv_writer4.writerow(['x_robot', 'y_robot', 'z_robot', 'x_kaliepn','y_kalipen','z_kalipen'])  # Write header   
         
-        self.T_EF_PEAK = np.eye(4)
-        p_EF_PEAK = [-0.00261583,  0.00204851,  0.06328093]
-        #T_EF_PEAK[0,3] = p_EF_PEAK[0]
-        #T_EF_PEAK[1,3] = p_EF_PEAK[1]
-        self.T_EF_PEAK[2,3] = p_EF_PEAK[2]
+        self.csv_file5 = open('robot_EFF_position.csv', 'w')  # Open CSV file in write mode
+        self.csv_writer5 = csv.writer(self.csv_file5)
+        self.csv_writer5.writerow(['x_robot', 'y_robot', 'z_robot'])  # Write header 
+        
+        self.csv_file6 = open('Kalip_position.csv', 'w')  # Open CSV file in write mode
+        self.csv_writer6 = csv.writer(self.csv_file6)
+        self.csv_writer6.writerow(['x_kalip', 'y_kalip', 'z_kalip'])  # Write header       
         
 
     def _init_pubs(self):
@@ -103,7 +117,18 @@ class sendToKalipPose():
             self.csv_writer3.writerow([self.current_robot_pose.position.x, self.current_robot_pose.position.y, self.current_robot_pose.position.z,
                                        self.current_robot_pose.orientation.x,self.current_robot_pose.orientation.y,
                                        self.current_robot_pose.orientation.z,self.current_robot_pose.orientation.w])
+            
+            self.csv_writer4.writerow([T_BASE_PEAK[0,3], T_BASE_PEAK[1,3], T_BASE_PEAK[2,3], self.kalip_pose.position.x, self.kalip_pose.position.y, self.kalip_pose.position.z])      
 
+        if (click.buttons[4] == 1): #L1 - robot EEF position
+            T_BASE_EF = pose_to_T(self.current_robot_pose)
+            
+            T_BASE_PEAK = T_BASE_EF @  self.T_EF_PEAK
+            self.csv_writer5.writerow([T_BASE_PEAK[0,3], T_BASE_PEAK[1,3], T_BASE_PEAK[2,3]])
+            
+        if (click.buttons[5] == 1): #R1 - Kalip position
+             self.csv_writer6.writerow([self.kalip_pose.position.x, self.kalip_pose.position.y, self.kalip_pose.position.z])
+            
     def kalip_cb(self, msg):
         # TODO: Add checks for the Kalipen acq position
         self.kalip_pose.position = msg.position
@@ -119,7 +144,7 @@ class sendToKalipPose():
         #self.kalip_pose_off = addOffsetToPose(self.kalip_pose, 0.0, -0.009)
         
         self.kalip_pose_off = T_to_pose(pose_to_T(self.kalip_pose) @ linalg.inv(self.T_EF_PEAK) )
-        
+        #print(self.kalip_pose_off)
     def capture_and_send_to_kalip_cb(self, msg):
         if msg.data == True:
             rospy.loginfo("Capturing kalipen and sending arm!")
